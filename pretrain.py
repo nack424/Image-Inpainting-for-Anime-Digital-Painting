@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
         trainset = SuperResolutionDataset(cmd_args.train_path)
 
-    model_engine, optimizer, train_dataloader, _ = deepspeed.initialize(config = 'deepspeed_config.json', model=model,
+    model_engine, optimizer, train_dataloader, _ = deepspeed.initialize(config = 'pretrain_deepspeed_config.json', model=model,
                                                          model_parameters=model.parameters(), training_data = trainset)
 
     if cmd_args.load_model is not None:
