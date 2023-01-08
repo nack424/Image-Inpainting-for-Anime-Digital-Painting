@@ -123,7 +123,7 @@ def create_large_mask(mask_width, mask_length, brush_amount=1):
                 negative_move_y = 1
 
             cv2.circle(mask, (start_x, start_y), round(brush_thickness / 2), 255, -1)
-            cv2.line(mask, (start_x, start_y), (end_x, end_y), 256, brush_thickness)
+            cv2.line(mask, (start_x, start_y), (end_x, end_y), 255, brush_thickness)
 
             start_x, start_y = end_x, end_y
 
