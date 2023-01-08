@@ -24,7 +24,7 @@ if __name__ == '__main__':
         if cmd_args.model == 'coarse':
             model = CoarseNet().to('cuda')
         else:
-            model = RefinementNet().to('cuda')
+            model = RefinementNet(use_gpu=True).to('cuda')
 
         vgg19_model = vgg19(weights='IMAGENET1K_V1').to('cuda')
         vgg19_model = vgg19_model.features[:21].to('cuda')
