@@ -109,6 +109,6 @@ class Joint_refinement_loss:
         self.gradient_loss = Gradient_loss(use_gpu)
         self.gradient_loss_weight = gradient_loss_weight
 
-    def __call__(self, predict, groundtruth, fake_discriminator_output):
-        return self.coarse_loss(predict, groundtruth) + self.gan_loss_weight*self.gan_loss(fake_discriminator_output) + \
+    def __call__(self, predict, groundtruth, fake_prediction):
+        return self.coarse_loss(predict, groundtruth) + self.gan_loss_weight*self.gan_loss(fake_prediction) + \
                self.gradient_loss_weight*self.gradient_loss(predict, groundtruth)
