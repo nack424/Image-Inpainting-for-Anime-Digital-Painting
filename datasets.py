@@ -27,23 +27,29 @@ def postprocess(tensor):
 # For training individual Coarse or Refinement network only
 class MaskedDataset(Dataset):
     def __init__(self, path, mask_type):
-        self.path = path
-        self.image_name_list = os.listdir(path)
         self.mask_type = mask_type
+        self.image_list = []
+
+        jpeg = TurboJPEG()
+
+        for image_name in os.listdir(path):
+            image_path = os.path.join(path, image_name)
+            in_file = open(image_path, 'rb')
+            original_image = jpeg.decode(in_file.read())
+            original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR).astype('uint8')
+
+            self.image_list.append(original_image)
 
     def __len__(self):
-        return len(self.image_name_list)
+        return len(self.image_list)
 
     def __getitem__(self, index):
-        image_name = self.image_name_list[index]
-        image_path = self.path + '/' + image_name
-        # original_image = cv2.imread(image_path)
-        jpeg = TurboJPEG()
-        in_file = open(image_path, 'rb')
-        original_image = jpeg.decode(in_file.read())
-        original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR)
+        original_image = self.image_list[index]
 
-        groundtruth = random_crop(original_image, 256, 256)
+        min_shape = min(original_image.shape) #min height or width
+
+        groundtruth = random_crop(original_image, round(min_shape/2), round(min_shape/2)) #Subject to change
+        groundtruth = cv2.resize(groundtruth, (256, 256))
 
         if self.mask_type == 1:
             brush_amount = round(random.uniform(1, 6))  # Subject to be change
@@ -66,23 +72,28 @@ class MaskedDataset(Dataset):
 # For training individual SuperResolution network only
 class SuperResolutionDataset(Dataset):
     def __init__(self, path):
-        self.path = path
-        self.image_name_list = os.listdir(path)
+        self.image_list = []
+
+        jpeg = TurboJPEG()
+
+        for image_name in os.listdir(path):
+            image_path = os.path.join(path, image_name)
+            in_file = open(image_path, 'rb')
+            original_image = jpeg.decode(in_file.read())
+            original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR).astype('uint8')
+
+            self.image_list.append(original_image)
 
     def __len__(self):
-        return len(self.image_name_list)
+        return len(self.image_list)
 
     def __getitem__(self, index):
-        image_name = self.image_name_list[index]
-        image_path = self.path + '/' + image_name
-        # original_image = cv2.imread(image_path)
-        jpeg = TurboJPEG()
-        in_file = open(image_path, 'rb')
-        original_image = jpeg.decode(in_file.read())
-        original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR)
+        original_image = self.image_list[index]
 
-        groundtruth = random_crop(original_image, 128, 128)  # Randomly crop 128 x 128 image from original image
-        # (Use for groundtruth in super resolution model)
+        min_shape = min(original_image.shape) #min height or width
+
+        groundtruth = random_crop(original_image, round(min_shape/2), round(min_shape/2)) #Subject to change
+        groundtruth = cv2.resize(groundtruth, (128, 128))
         resize_image = cv2.resize(groundtruth, (64, 64))
 
         groundtruth, resize_image = preprocess(groundtruth), preprocess(resize_image)
@@ -91,23 +102,29 @@ class SuperResolutionDataset(Dataset):
 
 class JointDataset(Dataset):
     def __init__(self, path, mask_type):
-        self.path = path
-        self.image_name_list = os.listdir(path)
         self.mask_type = mask_type
+        self.image_list = []
+
+        jpeg = TurboJPEG()
+
+        for image_name in os.listdir(path):
+            image_path = os.path.join(path, image_name)
+            in_file = open(image_path, 'rb')
+            original_image = jpeg.decode(in_file.read())
+            original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR).astype('uint8')
+
+            self.image_list.append(original_image)
 
     def __len__(self):
-        return len(self.image_name_list)
+        return len(self.image_list)
 
     def __getitem__(self, index):
-        image_name = self.image_name_list[index]
-        image_path = self.path + '/' + image_name
-        # original_image = cv2.imread(image_path)
-        jpeg = TurboJPEG()
-        in_file = open(image_path, 'rb')
-        original_image = jpeg.decode(in_file.read())
-        original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR)
+        original_image = self.image_list[index]
 
-        high_resolution_groundtruth = random_crop(original_image, 512, 512)
+        min_shape = min(original_image.shape) #min height or width
+
+        high_resolution_groundtruth = random_crop(original_image, round(min_shape/2), round(min_shape/2)) #Subject to change
+        high_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (512, 512))
         low_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (256, 256), interpolation=cv2.INTER_CUBIC)
 
         if self.mask_type == 1:
