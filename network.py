@@ -287,3 +287,30 @@ class RefinementNet(nn.Module):
         output = self.last_layer(x)  # Shape batch x 3 x W x H
 
         return output
+
+
+####Discriminator####
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.spectral_conv1 = nn.Sequential(spectral_norm(nn.Conv2d(6, 64, 5, 2, 2, 1)), nn.LeakyReLU())
+        self.spectral_conv2 = nn.Sequential(spectral_norm(nn.Conv2d(64, 128, 5, 2, 2, 1)), nn.LeakyReLU())
+        self.spectral_conv3 = nn.Sequential(spectral_norm(nn.Conv2d(128, 256, 5, 2, 2, 1)), nn.LeakyReLU())
+        self.spectral_conv4 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1)), nn.LeakyReLU())
+        self.spectral_conv5 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1)), nn.LeakyReLU())
+        self.classifier = nn.Sequential(nn.Linear(4096, 1), nn.Sigmoid())
+
+    def forward(self, image, mask):
+        x = torch.cat((image, mask), dim=1)  # Shape batch x 6 x 512 x 512
+
+        x = self.spectral_conv1(x)  # Shape batch x 64 x 256 x 256
+        x = self.spectral_conv2(x)  # Shape batch x 128 x 128 x 128
+        x = self.spectral_conv3(x)  # Shape batch x 256 x 64 x 64
+        x = self.spectral_conv4(x)  # Shape batch x 256 x 32 x 32
+        x = self.spectral_conv5(x)  # Shape batch x 256 x 16 x 16
+
+        x = x.view(-1, 4096)
+
+        output = self.classifier(x)
+
+        return output
