@@ -65,7 +65,7 @@ if __name__ == '__main__':
                 output = mask * output + (1 - mask) * masked_image
 
                 loss = loss_function(output, groundtruth)
-                wandb.log({"train_loss": loss})
+                # wandb.log({"train_loss": loss})
 
                 model_engine.backward(loss)
 
@@ -78,7 +78,7 @@ if __name__ == '__main__':
                 output = model_engine(resize_image)
 
                 loss = loss_function(output, groundtruth)
-                wandb.log({"train_loss": loss})
+                # wandb.log({"train_loss": loss})
 
                 model_engine.backward(loss)
 
