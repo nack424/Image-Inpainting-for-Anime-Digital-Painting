@@ -1,4 +1,5 @@
 import torch.nn.functional as F
+from torch.nn.utils.parametrizations import spectral_norm
 from utils.tensor import *
 
 class GateConv2d(nn.Module):
