@@ -22,11 +22,11 @@ class VGG_loss:
 
 class Coarse_loss:
     def __init__(self, vgg_model, vgg_loss_weight = 0.01):
-        self.L1_loss = L1_loss()
+        self.l1_loss = L1_loss()
         self.vgg_loss_weight = vgg_loss_weight
-        self.VGG_loss = VGG_loss(vgg_model)
+        self.vgg_loss = VGG_loss(vgg_model)
     def __call__(self, predict, groundtruth):
-        return self.L1_loss(predict, groundtruth) + self.vgg_loss_weight*self.VGG_loss(predict, groundtruth)
+        return self.l1_loss(predict, groundtruth) + self.vgg_loss_weight*self.vgg_loss(predict, groundtruth)
 
 
 class Gradient_loss:
@@ -49,8 +49,6 @@ class Gradient_loss:
             0)  # Not sure if it same as paper
 
     def __call__(self, predict, groundtruth):
-        assert predict.shape == groundtruth.shape
-
         predict_horizontal_grad = F.conv2d(predict, self.horizontal_filter, padding = 'same')
         predict_vertical_grad = F.conv2d(predict, self.vertical_filter, padding = 'same')
 
@@ -102,3 +100,15 @@ class Generator_loss:
         generator_loss = generator_loss/batch_size
 
         return generator_loss
+
+class Joint_refinement_loss:
+    def __init__(self, vgg_model, vgg_loss_weight = 1e-5, gan_loss_weight = 0.5, gradient_loss_weight = 1, use_gpu = True):
+        self.coarse_loss = Coarse_loss(vgg_model, vgg_loss_weight)
+        self.gan_loss = Generator_loss()
+        self.gan_loss_weight = gan_loss_weight
+        self.gradient_loss = Gradient_loss(use_gpu)
+        self.gradient_loss_weight = gradient_loss_weight
+
+    def __call__(self, predict, groundtruth, fake_discriminator_output):
+        return self.coarse_loss(predict, groundtruth) + self.gan_loss_weight*self.gan_loss(fake_discriminator_output) + \
+               self.gradient_loss_weight*self.gradient_loss(predict, groundtruth)
