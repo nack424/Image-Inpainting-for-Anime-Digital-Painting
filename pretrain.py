@@ -85,5 +85,5 @@ if __name__ == '__main__':
                 model_engine.step()
 
         if cmd_args.save_model is not None and ((100 * (epoch + 1)) / cmd_args.epochs) % 10 == 0:
-            model_engine.save_checkpoint(save_dir = os.path.join(cmd_args.save_model, cmd_args.model + '_' + str(epoch)),
+            model_engine.save_checkpoint(save_dir = os.path.join(cmd_args.save_model, cmd_args.model + '_' + str(epoch+1)),
                                          save_latest = False)
