@@ -3,6 +3,7 @@
 .idea
 __pycache__
 DeepCreamPy-master
+image_inpainting.ipynb
 save_model
 trainset
 valset
