@@ -1,18 +1,23 @@
 import argparse
 from datasets import *
-import deepspeed
 import glob
 from network import *
 import os
 from torchvision.models import vgg19
+from torch.utils.data import DataLoader
 from utils.loss import *
 import wandb
 
 parser = argparse.ArgumentParser(description='My training script.')
-parser.add_argument('--epochs', type=int, help='Number of epochs to train')
-parser.add_argument('--load_model', type=str, help='(Optinal) Path to all saved models folder, make sure to leave only target model')
+parser.add_argument('--batch_size', type=int, default = 1, help='Amount of data that pass simultaneously to model')
+parser.add_argument('--epochs', type=int, default=10, help='Number of epochs to train')
+parser.add_argument('--learning_rate', type=int, default=1e-5, help='Control amount of weight change during optimization')
+parser.add_argument('--load_discriminator', type=str, help='(Optinal) Path to discriminator model')
+parser.add_argument('--load_inpaint', type=str, help='(Optinal) Folder contain 3 inpaints model, make sure to leave only target models')
 parser.add_argument('--mask_type', type=int, default=1, help='Mask type: 1 for normal mask, 2 for large mask')
+parser.add_argument('--num_workers', type=int, default=0, help='Amount of multiprocess in dataloader (0 mean use single process)')
 parser.add_argument('--train_path', type=str,  help='Training image folder')
+parser.add_argument('--val_path', type=str,  help='(Optinal) Validation image folder')
 parser.add_argument('--save_model', type=str,  help='(Optinal) Folder to save all models')
 
 if __name__ == '__main__':
@@ -27,42 +32,34 @@ if __name__ == '__main__':
     vgg19_model = vgg19(weights='IMAGENET1K_V1').to('cuda')
     vgg19_model = vgg19_model.features[:21].to('cuda')
 
-    trainset = JointDataset(cmd_args.train_path, cmd_args.mask_type)
+    train_dataset = JointDataset(cmd_args.train_path, cmd_args.mask_type)
+    train_dataloader = DataLoader(train_dataset, batch_size=cmd_args.batch_size, num_workers=cmd_args.num_workers)
 
-    coarse_engine, coarse_optimizer, train_dataloader, _ = deepspeed.initialize(config = 'train_deepspeed_config.json', model=coarse_model,
-                                                         model_parameters=coarse_model.parameters(), training_data = trainset)
-    super_resolution_engine, super_resolution_optimizer, _, _ = deepspeed.initialize(config = 'train_deepspeed_config.json',
-                                                                                     model=super_resolution_model,
-                                                                                     model_parameters=super_resolution_model.parameters())
-    refinement_engine, refinement_optimizer, _, _ = deepspeed.initialize(config = 'train_deepspeed_config.json',
-                                                                         model=refinement_model,
-                                                                         model_parameters=refinement_model.parameters())
-    discriminator_engine, discriminator_optimizer, _, _ = deepspeed.initialize(config = 'train_deepspeed_config.json',
-                                                                         model=discriminator_model,
-                                                                         model_parameters=discriminator_model.parameters())
+    if cmd_args.val_path is not None:
+        val_dataset = JointDataset(cmd_args.val_path, cmd_args.mask_type)
+        val_dataloader = DataLoader(val_dataset, batch_size=cmd_args.batch_size, num_workers=cmd_args.num_workers)
 
-    if cmd_args.load_model is not None:
-        if len(glob.glob(os.path.join(cmd_args.load_model, 'coarse_*'))) >0:
-            coarse_folder = glob.glob(os.path.join(glob.glob(os.path.join(cmd_args.load_model, 'coarse_*'))[0], 'global_step*'))[0]
-            coarse_engine.load_checkpoint(load_dir=os.path.join(coarse_folder, os.listdir(coarse_folder)[0]))
+    if cmd_args.load_inpaint is not None:
+        coarse_model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_inpaint, 'coarse*'))[0]))
+        super_resolution_model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_inpaint, 'super_resolution*'))[0]))
+        refinement_model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_inpaint, 'refinement*'))[0]))
 
-        if len(glob.glob(os.path.join(cmd_args.load_model, 'super_resolution_*'))) >0:
-            super_resolution_folder = glob.glob(os.path.join(glob.glob(os.path.join(cmd_args.load_model, 'super_resolution_*'))[0], 'global_step*'))[0]
-            super_resolution_engine.load_checkpoint(load_dir=os.path.join(super_resolution_folder, os.listdir(super_resolution_folder)[0]))
-
-        if len(glob.glob(os.path.join(cmd_args.load_model, 'refinement_*'))) >0:
-            refinement_folder = glob.glob(os.path.join(glob.glob(os.path.join(cmd_args.load_model, 'refinement_*'))[0], 'global_step*'))[0]
-            refinement_engine.load_checkpoint(load_dir=os.path.join(refinement_folder, os.listdir(refinement_folder)[0]))
-
-        if len(glob.glob(os.path.join(cmd_args.load_model, 'discriminator_*'))) >0:
-            discriminator_folder = glob.glob(os.path.join(glob.glob(os.path.join(cmd_args.load_model, 'discriminator_*'))[0], 'global_step*'))[0]
-            discriminator_engine.load_checkpoint(load_dir=os.path.join(discriminator_folder, os.listdir(discriminator_folder)[0]))
+    if cmd_args.load_discriminator is not None:
+        discriminator_model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_inpaint, 'discriminator*'))[0]))
 
     coarse_loss_function = Coarse_loss(vgg19_model, vgg_loss_weight=0.01)
     super_resolution_loss_function = L1_loss()
     refinement_loss_function = Joint_refinement_loss(vgg19_model, vgg_loss_weight = 1e-5, gan_loss_weight = 0.5,
                                                      gradient_loss_weight = 1)
     discriminator_loss_function = Discriminator_loss()
+
+    inpaint_parameters = list(coarse_model.parameters()) + list(super_resolution_model.parameters()) + \
+                         list(refinement_model.parameters())
+
+    discriminator_optimizer = torch.optim.AdamW(discriminator_model.parameters(), lr = cmd_args.learning_rate)
+    inpaint_optimizer = torch.optim.AdamW(inpaint_parameters, lr = cmd_args.learning_rate)
+
+    scaler = torch.cuda.amp.GradScaler(init_scale=16834.0, enabled=True)
 
     wandb.init(
         project="anime_inpaint",
@@ -74,38 +71,105 @@ if __name__ == '__main__':
     )
 
     for epoch in range(cmd_args.epochs):
+        total_train_inpaint_loss = 0
+        total_train_discriminator_loss = 0
+
+        total_val_inpaint_loss = 0
+        total_val_discriminator_loss = 0
+
+        num_batch = len(train_dataloader)
+
         for batch, data in enumerate(train_dataloader):
             masked_image, mask, lr_groundtruth, hr_groundtruth = data
             masked_image, mask, lr_groundtruth, hr_groundtruth = masked_image.to('cuda'), mask.to('cuda'), \
                                                                  lr_groundtruth.to('cuda'), hr_groundtruth.to('cuda')
 
-            coarse_output = coarse_engine(masked_image, mask)
-            coarse_output = mask * coarse_output + (1 - mask) * masked_image
-            coarse_loss = coarse_loss_function(coarse_output, lr_groundtruth)
+            with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=True):
+                output = coarse_model(masked_image, mask)
+                output = mask*output + (1-mask)*masked_image #Coarse output
+                coarse_loss = coarse_loss_function(output, lr_groundtruth)
 
-            super_resolution_output = super_resolution_engine(coarse_output)
-            super_resolution_loss = super_resolution_loss_function(super_resolution_output, hr_groundtruth)
+                output = super_resolution_model(output) #Super resolution output
+                super_resolution_loss = super_resolution_loss_function(output, hr_groundtruth)
 
-            mask = F.interpolate(mask, scale_factor=2, mode='nearest')
-            refinement_output = refinement_engine(super_resolution_output, mask)
-            refinement_output = mask * refinement_output + (1-mask) * hr_groundtruth
+                mask = F.interpolate(mask, size = (512, 512), mode = 'nearest')
+                output = refinement_model(output, mask)
 
-            real_prediction = discriminator_engine(hr_groundtruth, mask)
-            fake_prediction = discriminator_engine(refinement_output, mask)
+                output = mask*output + (1-mask)*hr_groundtruth #Refinement output
 
-            discriminator_loss = discriminator_loss_function(real_prediction, fake_prediction)
-            refinement_loss = refinement_loss_function(refinement_output, hr_groundtruth, fake_prediction)
+                real_prediction = discriminator_model(hr_groundtruth, mask)
+                fake_prediction = discriminator_model(output, mask)
 
-            inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
+                discriminator_loss = discriminator_loss_function(real_prediction, fake_prediction)
+                refinement_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
 
-            coarse_engine.backward(inpaint_loss, retain_graph=True)
-            coarse_engine.step()
+                inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
 
-            super_resolution_engine.backward(inpaint_loss, retain_graph=True)
-            super_resolution_engine.step()
+                total_train_discriminator_loss += discriminator_loss.item()
+                total_train_inpaint_loss += inpaint_loss.item()
 
-            refinement_engine.backward(inpaint_loss, retain_graph=True)
-            refinement_engine.step()
+            scaler.scale(discriminator_loss).backward(inputs = list(discriminator_model.parameters()), retain_graph=True)
+            scaler.step(discriminator_optimizer)
+            discriminator_optimizer.zero_grad(set_to_none=True)
 
-            discriminator_engine.backward(discriminator_loss)
-            discriminator_engine.step()
+            scaler.scale(inpaint_loss).backward(inputs = inpaint_parameters)
+            scaler.step(inpaint_optimizer)
+            inpaint_optimizer.zero_grad(set_to_none=True)
+
+            scaler.update()
+
+        if cmd_args.val_path is not None:
+            for batch, data in enumerate(val_dataloader):
+                masked_image, mask, lr_groundtruth, hr_groundtruth = data
+                masked_image, mask, lr_groundtruth, hr_groundtruth = masked_image.to('cuda'), mask.to('cuda'), \
+                    lr_groundtruth.to('cuda'), hr_groundtruth.to('cuda')
+
+                with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=True):
+                    output = coarse_model(masked_image, mask)
+                    output = mask * output + (1 - mask) * masked_image  # Coarse output
+                    coarse_loss = coarse_loss_function(output, lr_groundtruth)
+
+                    output = super_resolution_model(output)  # Super resolution output
+                    super_resolution_loss = super_resolution_loss_function(output, hr_groundtruth)
+
+                    mask = F.interpolate(mask, size=(512, 512), mode='nearest')
+                    output = refinement_model(output, mask)
+
+                    output = mask * output + (1 - mask) * hr_groundtruth  # Refinement output
+
+                    real_prediction = discriminator_model(hr_groundtruth, mask)
+                    fake_prediction = discriminator_model(output, mask)
+
+                    discriminator_loss = discriminator_loss_function(real_prediction, fake_prediction)
+                    refinement_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
+
+                    inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
+
+                    total_val_discriminator_loss += discriminator_loss.item()
+                    total_val_inpaint_loss += inpaint_loss.item()
+
+        average_train_inpaint_loss = total_train_inpaint_loss / num_batch
+        average_train_discriminator_loss = total_train_discriminator_loss / num_batch
+
+        if cmd_args.val_path is not None:
+            average_val_inpaint_loss = total_val_inpaint_loss / num_batch
+            average_val_discriminator_loss = total_val_discriminator_loss / num_batch
+            wandb.log({"train_inpaint_loss": average_train_inpaint_loss,
+                       "train_discriminator_loss": average_train_discriminator_loss,
+                       "val_inpaint_loss": average_val_inpaint_loss,
+                       "val_discriminator_loss": average_val_discriminator_loss
+                       })
+        else:
+            wandb.log({"train_inpaint_loss": average_train_inpaint_loss,
+                       "train_discriminator_loss": average_train_discriminator_loss})
+
+        if cmd_args.save_model is not None and ((100 * (epoch + 1)) / cmd_args.epochs) % 10 == 0:
+            torch.save(coarse_model.state_dict(), os.path.join(cmd_args.save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))
+            torch.save(super_resolution_model.state_dict(),
+                       os.path.join(cmd_args.save_model, 'super_resolution_joint' + str(epoch + 1) + '.pt'))
+            torch.save(refinement_model.state_dict(),
+                       os.path.join(cmd_args.save_model, 'refinement_joint' + str(epoch + 1) + '.pt'))
+            torch.save(discriminator_model.state_dict(),
+                       os.path.join(cmd_args.save_model, 'discriminator_joint' + str(epoch + 1) + '.pt'))
+
+
