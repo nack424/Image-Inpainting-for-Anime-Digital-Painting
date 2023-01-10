@@ -50,7 +50,6 @@ cuda-toolkit=11.7.1=0
 cuda-tools=11.7.1=0
 cuda-visual-tools=11.7.1=0
 dbus=1.13.6=h5008d03_3
-deepspeed=0.7.7=pypi_0
 docker-pycreds=0.4.0=py_0
 expat=2.5.0=h27087fc_0
 ffmpeg=4.4.2=gpl_h8dda1f0_112
