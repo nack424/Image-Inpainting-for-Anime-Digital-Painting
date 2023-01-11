@@ -40,13 +40,13 @@ class Gradient_loss:
             [-1, 0, 1],
             [-1, 0, 1],
             [-1, 0, 1]], dtype=torch.float32, device = device).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
-            0)  # Not sure if it same as paper
+            0)
 
         self.vertical_filter = torch.tensor([
             [-1, -1, -1],
             [0, 0, 0],
             [1, 1, 1]], dtype=torch.float32, device = device).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
-            0)  # Not sure if it same as paper
+            0)
 
     def __call__(self, predict, groundtruth):
         different = predict - groundtruth
@@ -55,7 +55,6 @@ class Gradient_loss:
         vertical_grad = F.conv2d(different, self.vertical_filter, padding = 'same')
 
         output = torch.mean(torch.square(horizontal_grad) + torch.square(vertical_grad))/2
-        #์Not sure about loss formula
 
         return output
 
