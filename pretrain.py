@@ -1,5 +1,6 @@
 import argparse
 from datasets import *
+import glob
 from network import *
 import os
 from torchvision.models import vgg19
@@ -11,7 +12,7 @@ parser = argparse.ArgumentParser(description='My training script.')
 parser.add_argument('--batch_size', type=int, default = 8, help='Amount of data that pass simultaneously to model')
 parser.add_argument('--epochs', type=int, default=10, help='Number of epochs to train')
 parser.add_argument('--learning_rate', type=int, default=1e-5, help='Control amount of weight change during optimization')
-parser.add_argument('--load_model', type=str, help='(Optinal) Path to saved model')
+parser.add_argument('--load_model', type=str, help='(Optinal) Folder contain saved model (Model must match --model)')
 parser.add_argument('--model', type=str, help='Model to train: coarse, super_resolution or refinement')
 parser.add_argument('--num_workers', type=int, default=0, help='Amount of multiprocess in dataloader (0 mean use single process)')
 parser.add_argument('--train_path', type=str,  help='Training image folder')
@@ -54,7 +55,7 @@ if __name__ == '__main__':
             val_dataloader = DataLoader(val_dataset, batch_size = cmd_args.batch_size, num_workers = cmd_args.num_workers)
 
     if cmd_args.load_model is not None:
-        model.load_state_dict(torch.load(cmd_args.load_model))
+        model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_model, cmd_args.model + '*'))[0]))
 
     optimizer = torch.optim.AdamW(model.parameters(), lr = cmd_args.learning_rate)
 
