@@ -62,12 +62,7 @@ if __name__ == '__main__':
     scaler = torch.cuda.amp.GradScaler(init_scale = 16834.0, enabled=True)
 
     wandb.init(
-        project="anime_inpaint",
-        config={
-            "learning_rate": 1e-5,
-            "architecture": "CNN",
-            "epochs": cmd_args.epochs,
-        }
+        project="anime_inpaint_" + cmd_args.model
     )
     wandb.define_metric("train_loss", goal="minimize")
     wandb.define_metric("val_loss", goal="minimize")
