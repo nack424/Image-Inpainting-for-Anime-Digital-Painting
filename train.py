@@ -107,9 +107,9 @@ if __name__ == '__main__':
             scaler.step(discriminator_optimizer)
             discriminator_optimizer.zero_grad(set_to_none=True)
 
-            # scaler.scale(inpaint_loss).backward(inputs = inpaint_parameters)
-            # scaler.step(inpaint_optimizer)
-            # inpaint_optimizer.zero_grad(set_to_none=True)
+            scaler.scale(inpaint_loss).backward(inputs = inpaint_parameters)
+            scaler.step(inpaint_optimizer)
+            inpaint_optimizer.zero_grad(set_to_none=True)
 
             scaler.update()
 
