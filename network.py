@@ -84,7 +84,7 @@ class DilationResidualGateBlock(nn.Module):
 class CoarseNet(nn.Module):
     def __init__(self):
         super(CoarseNet, self).__init__()
-        self.encoder_block1 = ResidualGateBlock(6, 64, 3)
+        self.encoder_block1 = ResidualGateBlock(4, 64, 3)
         self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.encoder_block2 = ResidualGateBlock(32, 128, 3)
         self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -96,7 +96,7 @@ class CoarseNet(nn.Module):
         self.last_layer = GateConv2d(32, 3, 3)
 
     def forward(self, masked_image, mask):
-        x = torch.cat((masked_image, mask), dim=1)  # Shape batch x 6 x W x H
+        x = torch.cat((masked_image, mask), dim=1)  # Shape batch x 4 x W x H
 
         x = self.encoder_block1(x)
         x = self.maxpool1(x)
@@ -182,7 +182,6 @@ class ContextualAttention(nn.Module):
 
         x_clone = x.clone()
         mask_clone = mask.clone()
-        mask_clone = mask_clone[:, 1, :, :].unsqueeze(1)
 
         raw_x_block_size = 2 * self.attention_rate
 
@@ -251,7 +250,7 @@ class ContextualAttention(nn.Module):
 class RefinementNet(nn.Module):
     def __init__(self, use_gpu=False):
         super(RefinementNet, self).__init__()
-        self.encoder_block1 = ResidualGateBlock(6, 64, 3)
+        self.encoder_block1 = ResidualGateBlock(4, 64, 3)
         self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.encoder_block2 = ResidualGateBlock(32, 128, 3)
         self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -267,7 +266,7 @@ class RefinementNet(nn.Module):
         self.last_layer = GateConv2d(32, 3, 3)
 
     def forward(self, masked_image, mask):
-        x = torch.cat((masked_image, mask), dim=1)  # Shape batch x 6 x W x H
+        x = torch.cat((masked_image, mask), dim=1)  # Shape batch x 4 x W x H
 
         x = self.encoder_block1(x)
         x = self.maxpool1(x)
@@ -294,7 +293,7 @@ class RefinementNet(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.spectral_conv1 = nn.Sequential(spectral_norm(nn.Conv2d(6, 64, 5, 2, 2, 1)), nn.LeakyReLU())
+        self.spectral_conv1 = nn.Sequential(spectral_norm(nn.Conv2d(4, 64, 5, 2, 2, 1)), nn.LeakyReLU())
         self.spectral_conv2 = nn.Sequential(spectral_norm(nn.Conv2d(64, 128, 5, 2, 2, 1)), nn.LeakyReLU())
         self.spectral_conv3 = nn.Sequential(spectral_norm(nn.Conv2d(128, 256, 5, 2, 2, 1)), nn.LeakyReLU())
         self.spectral_conv4 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1)), nn.LeakyReLU())
@@ -302,7 +301,7 @@ class Discriminator(nn.Module):
         self.classifier = nn.Sequential(nn.Linear(4096, 1), nn.Sigmoid())
 
     def forward(self, image, mask):
-        x = torch.cat((image, mask), dim=1)  # Shape batch x 6 x 512 x 512
+        x = torch.cat((image, mask), dim=1)  # Shape batch x 4 x 512 x 512
 
         x = self.spectral_conv1(x)  # Shape batch x 64 x 256 x 256
         x = self.spectral_conv2(x)  # Shape batch x 128 x 128 x 128

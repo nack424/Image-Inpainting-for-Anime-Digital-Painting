@@ -153,8 +153,8 @@ def mask_image(image_array, mask_type=1, brush_amount=1):
     else:
         raise Exception("mask_type must be either 1 or 2")
 
-    mask_3D = np.repeat(np.expand_dims(mask, 2), 3, 2)
+    mask = np.expand_dims(mask, 2)
 
-    masked_image = (1 - mask_3D) * image_array
+    masked_image = (1 - mask) * image_array
 
-    return masked_image, mask_3D
+    return masked_image, mask
