@@ -35,8 +35,7 @@ class MaskedDataset(Dataset):
         for image_name in os.listdir(path):
             image_path = os.path.join(path, image_name)
             in_file = open(image_path, 'rb')
-            original_image = jpeg.decode(in_file.read())
-            original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR).astype('uint8')
+            original_image = jpeg.decode(in_file.read()).astype('uint8')
 
             self.image_list.append(original_image)
 
@@ -46,7 +45,7 @@ class MaskedDataset(Dataset):
     def __getitem__(self, index):
         original_image = self.image_list[index]
 
-        min_shape = min(original_image.shape) #min height or width
+        min_shape = min(original_image.shape[0], original_image.shape[1]) #min height or width
 
         groundtruth = random_crop(original_image, round(min_shape/2), round(min_shape/2)) #Subject to change
         groundtruth = cv2.resize(groundtruth, (256, 256))
@@ -79,8 +78,7 @@ class SuperResolutionDataset(Dataset):
         for image_name in os.listdir(path):
             image_path = os.path.join(path, image_name)
             in_file = open(image_path, 'rb')
-            original_image = jpeg.decode(in_file.read())
-            original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR).astype('uint8')
+            original_image = jpeg.decode(in_file.read()).astype('uint8')
 
             self.image_list.append(original_image)
 
@@ -90,7 +88,7 @@ class SuperResolutionDataset(Dataset):
     def __getitem__(self, index):
         original_image = self.image_list[index]
 
-        min_shape = min(original_image.shape) #min height or width
+        min_shape = min(original_image.shape[0], original_image.shape[1]) #min height or width
 
         groundtruth = random_crop(original_image, round(min_shape/2), round(min_shape/2)) #Subject to change
         groundtruth = cv2.resize(groundtruth, (128, 128))
@@ -110,8 +108,7 @@ class JointDataset(Dataset):
         for image_name in os.listdir(path):
             image_path = os.path.join(path, image_name)
             in_file = open(image_path, 'rb')
-            original_image = jpeg.decode(in_file.read())
-            original_image = cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR).astype('uint8')
+            original_image = jpeg.decode(in_file.read()).astype('uint8')
 
             self.image_list.append(original_image)
 
@@ -121,7 +118,7 @@ class JointDataset(Dataset):
     def __getitem__(self, index):
         original_image = self.image_list[index]
 
-        min_shape = min(original_image.shape) #min height or width
+        min_shape = min(original_image.shape[0], original_image.shape[1]) #min height or width
 
         high_resolution_groundtruth = random_crop(original_image, round(min_shape/2), round(min_shape/2)) #Subject to change
         high_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (512, 512))

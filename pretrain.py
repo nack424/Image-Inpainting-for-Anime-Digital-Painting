@@ -17,7 +17,6 @@ parser.add_argument('--num_workers', type=int, default=0, help='Amount of multip
 parser.add_argument('--train_path', type=str,  help='Training image folder')
 parser.add_argument('--val_path', type=str,  help='(Optinal) Validation image folder')
 parser.add_argument('--save_model', type=str,  help='(Optinal) Folder to save model')
-#Note: for change training parameters, edit deepspeed_config.
 
 if __name__ == '__main__':
     cmd_args = parser.parse_args()

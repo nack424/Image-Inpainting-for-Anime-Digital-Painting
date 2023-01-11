@@ -4,6 +4,7 @@
 __pycache__
 image_inpainting.ipynb
 save_model
+test.py
 trainset
 valset
 wandb
