@@ -49,18 +49,12 @@ class Gradient_loss:
             0)  # Not sure if it same as paper
 
     def __call__(self, predict, groundtruth):
-        predict_horizontal_grad = F.conv2d(predict, self.horizontal_filter, padding = 'same')
-        predict_vertical_grad = F.conv2d(predict, self.vertical_filter, padding = 'same')
+        different = predict - groundtruth
 
-        groundtruth_horizontal_grad = F.conv2d(groundtruth, self.horizontal_filter, padding = 'same')
-        groundtruth_vertical_grad = F.conv2d(groundtruth, self.vertical_filter, padding = 'same')
+        horizontal_grad = F.conv2d(different, self.horizontal_filter, padding = 'same')
+        vertical_grad = F.conv2d(different, self.vertical_filter, padding = 'same')
 
-        horizontal_grad_diff = predict_horizontal_grad - groundtruth_horizontal_grad #Shape batch x 1 x height x width
-        vertical_grad_diff = predict_vertical_grad - groundtruth_vertical_grad
-
-        num_pixels = horizontal_grad_diff.shape[0] * horizontal_grad_diff.shape[2] * horizontal_grad_diff.shape[3]
-
-        output = (torch.sum(torch.square(horizontal_grad_diff)) + torch.sum(torch.square(vertical_grad_diff)))/(2 * num_pixels)
+        output = torch.mean(torch.square(horizontal_grad) + torch.square(vertical_grad))/2
         #์Not sure about loss formula
 
         return output
