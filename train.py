@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     coarse_model = CoarseNet().to('cuda')
     super_resolution_model = SuperResolutionNet().to('cuda')
-    refinement_model = RefinementNet(use_gpu=True).to('cuda')
+    refinement_model = RefinementNet().to('cuda')
 
     discriminator_model = Discriminator().to('cuda')
 

@@ -162,20 +162,20 @@ class SuperResolutionNet(nn.Module):
 
 ####Refinement network####
 class ContextualAttention(nn.Module):
-    def __init__(self, block_size, stride, attention_rate, softmax_scale=10, use_gpu=False):
+    def __init__(self, block_size, stride, attention_rate, softmax_scale=10):
         super(ContextualAttention, self).__init__()
         self.block_size = block_size
         self.stride = stride
         self.attention_rate = attention_rate
         self.softmax_scale = softmax_scale
 
-        if use_gpu:
-            self.device = 'cuda'
-        else:
-            self.device = 'cpu'
-
     def forward(self, x, mask):
         x_shape = x.shape
+
+        if x.is_cuda:
+            device = 'cuda'
+        else:
+            device = 'cpu'
 
         if mask.shape[2] != x.shape[2] or mask.shape[3] != x.shape[3]:
             mask = F.interpolate(mask, size=(x.shape[2], x.shape[3]))
@@ -217,7 +217,7 @@ class ContextualAttention(nn.Module):
         for x_input, x_filter, x_defilter, mask_filter in zip(x_resize_minibatch, x_resize_unfold_minibatch,
                                                               x_unfold_minibatch, mask_resize_unfold_minibatch):
             x_filter = x_filter[0]  # Shape L x C x k x k
-            escape_nan = torch.FloatTensor([1e-4]).to(self.device)
+            escape_nan = torch.FloatTensor([1e-4]).to(device)
             x_filter_normed = x_filter / torch.sqrt(
                 reduce_sum(torch.pow(x_filter, 2) + escape_nan, axis=[1, 2, 3], keepdim=True))
 
@@ -248,7 +248,7 @@ class ContextualAttention(nn.Module):
         return output
 
 class RefinementNet(nn.Module):
-    def __init__(self, use_gpu=False):
+    def __init__(self):
         super(RefinementNet, self).__init__()
         self.encoder_block1 = ResidualGateBlock(4, 64, 3)
         self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -256,7 +256,7 @@ class RefinementNet(nn.Module):
         self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.bottleneck_block = DilationResidualGateBlock(64, 256, 3, [2, 4, 8])
         self.gate1 = GateConv2d(128, 256, 3)
-        self.contexual_attetion = ContextualAttention(3, 1, 2, 10, use_gpu)
+        self.contexual_attetion = ContextualAttention(3, 1, 2, 10)
         self.gate2 = GateConv2d(128, 256, 3)
         # Concat output of bottleneck and attention
         self.upsample1 = nn.Upsample(scale_factor=2, mode='nearest')
