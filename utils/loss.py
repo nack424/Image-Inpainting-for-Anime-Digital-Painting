@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torchvision import transforms
 
 class L1_loss:
     def __call__(self, predict, groundtruth):
@@ -12,6 +13,12 @@ class VGG_loss:
     def __init__(self, vgg_model):
         self.vgg_model = vgg_model
     def __call__(self, predict, groundtruth):
+        image_transform = transforms.Compose([transforms.Resize(size = (224, 224)),
+                                       transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])])
+
+        predict = image_transform(predict)
+        groundtruth = image_transform(groundtruth)
+
         predict_vgg = self.vgg_model(predict)
         groundtruth_vgg = self.vgg_model(groundtruth)
 
