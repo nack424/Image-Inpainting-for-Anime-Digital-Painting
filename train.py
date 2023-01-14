@@ -66,9 +66,15 @@ if __name__ == '__main__':
     )
 
     for epoch in range(cmd_args.epochs):
+        total_train_coarse_loss = 0
+        total_train_super_resolution_loss = 0
+        total_train_refinement_loss = 0
         total_train_inpaint_loss = 0
         total_train_discriminator_loss = 0
 
+        total_val_coarse_loss = 0
+        total_val_super_resolution_loss = 0
+        total_val_refinement_loss = 0
         total_val_inpaint_loss = 0
         total_val_discriminator_loss = 0
 
@@ -100,6 +106,9 @@ if __name__ == '__main__':
 
                 inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
 
+                total_train_coarse_loss += coarse_loss.item()
+                total_train_super_resolution_loss += super_resolution_loss.item()
+                total_train_refinement_loss += refinement_loss.item()
                 total_train_discriminator_loss += discriminator_loss.item()
                 total_train_inpaint_loss += inpaint_loss.item()
 
@@ -140,22 +149,40 @@ if __name__ == '__main__':
 
                     inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
 
+                    total_val_coarse_loss += coarse_loss.item()
+                    total_val_super_resolution_loss += super_resolution_loss.item()
+                    total_val_refinement_loss += refinement_loss.item()
                     total_val_discriminator_loss += discriminator_loss.item()
                     total_val_inpaint_loss += inpaint_loss.item()
 
+        average_train_coarse_loss = total_train_coarse_loss / num_batch
+        average_train_super_resolution_loss = total_train_super_resolution_loss / num_batch
+        average_train_refinement_loss = total_train_refinement_loss / num_batch
         average_train_inpaint_loss = total_train_inpaint_loss / num_batch
         average_train_discriminator_loss = total_train_discriminator_loss / num_batch
 
         if cmd_args.val_path is not None:
+            average_val_coarse_loss = total_val_coarse_loss / num_batch
+            average_val_super_resolution_loss = total_val_super_resolution_loss / num_batch
+            average_val_refinement_loss = total_val_refinement_loss / num_batch
             average_val_inpaint_loss = total_val_inpaint_loss / num_batch
             average_val_discriminator_loss = total_val_discriminator_loss / num_batch
-            wandb.log({"train_inpaint_loss": average_train_inpaint_loss,
+            wandb.log({"train_coarse_loss": average_train_coarse_loss,
+                      "train_SR_loss": average_train_super_resolution_loss,
+                       "train_refinement_loss": average_train_refinement_loss,
+                      "train_total_loss": average_train_inpaint_loss,
                        "train_discriminator_loss": average_train_discriminator_loss,
-                       "val_inpaint_loss": average_val_inpaint_loss,
+                       "val_coarse_loss": average_val_coarse_loss,
+                       "val_SR_loss": average_val_super_resolution_loss,
+                       "val_refinement_loss": average_val_refinement_loss,
+                       "val_total_loss": average_val_inpaint_loss,
                        "val_discriminator_loss": average_val_discriminator_loss
                        })
         else:
-            wandb.log({"train_inpaint_loss": average_train_inpaint_loss,
+            wandb.log({"train_coarse_loss": average_train_coarse_loss,
+                      "train_SR_loss": average_train_super_resolution_loss,
+                       "train_refinement_loss": average_train_refinement_loss,
+                      "train_total_loss": average_train_inpaint_loss,
                        "train_discriminator_loss": average_train_discriminator_loss})
 
         if cmd_args.save_model is not None and ((100 * (epoch + 1)) / cmd_args.epochs) % 10 == 0:
