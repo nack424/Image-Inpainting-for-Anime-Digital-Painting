@@ -51,7 +51,7 @@ class MaskedDataset(Dataset):
         groundtruth = cv2.resize(groundtruth, (256, 256))
 
         if self.mask_type == 1:
-            brush_amount = round(random.uniform(1, 6))  # Subject to be change
+            brush_amount = round(random.uniform(2, 6))  # Subject to be change
 
         elif self.mask_type == 2:
             brush_amount = round(random.uniform(1, 4))  # Subject to be change
