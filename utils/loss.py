@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 import torch.nn.functional as F
 from torchvision import transforms
 
@@ -44,22 +45,22 @@ class Gradient_loss:
             device = 'cpu'
 
         self.horizontal_filter = torch.tensor([
-            [-1, 0, 1],
-            [-1, 0, 1],
-            [-1, 0, 1]], dtype=torch.float32, device = device).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
+            [-1, 1]], dtype=torch.float32, device = device).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
             0)
 
         self.vertical_filter = torch.tensor([
-            [-1, -1, -1],
-            [0, 0, 0],
-            [1, 1, 1]], dtype=torch.float32, device = device).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
+            [-1],
+            [1]], dtype=torch.float32, device = device).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
             0)
+
+        self.horizontal_padder = nn.ZeroPad2d((0, 1, 0, 0)) #For same padding
+        self.vertical_padder = nn.ZeroPad2d((0, 0, 0, 1))
 
     def __call__(self, predict, groundtruth):
         different = predict - groundtruth
 
-        horizontal_grad = F.conv2d(different, self.horizontal_filter, padding = 'same')
-        vertical_grad = F.conv2d(different, self.vertical_filter, padding = 'same')
+        horizontal_grad = F.conv2d(self.horizontal_padder(different), self.horizontal_filter)
+        vertical_grad = F.conv2d(self.vertical_padder(different), self.vertical_filter)
 
         output = torch.mean(torch.square(horizontal_grad) + torch.square(vertical_grad))/2
 
