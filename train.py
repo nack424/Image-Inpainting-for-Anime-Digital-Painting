@@ -45,7 +45,7 @@ if __name__ == '__main__':
         refinement_model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_inpaint, 'refinement*'))[0]))
 
     if cmd_args.load_discriminator is not None:
-        discriminator_model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_inpaint, 'discriminator*'))[0]))
+        discriminator_model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_discriminator, 'discriminator*'))[0]))
 
     coarse_loss_function = Coarse_loss(vgg19_model, vgg_loss_weight=0.01)
     super_resolution_loss_function = L1_loss()
