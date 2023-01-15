@@ -68,37 +68,12 @@ class Gradient_loss:
 
 class Discriminator_loss:
     def __call__(self, real_prediction, fake_prediction):
-        #discriminator_pred shape batch x length
-        real_batch_size = real_prediction.shape[0]
-        fake_batch_size = fake_prediction.shape[0]
-
-        real_loss = 0
-        fake_loss = 0
-
-        for prediction in real_prediction:
-            real_loss += F.relu(1 - prediction)
-
-        for prediction in fake_prediction:
-            fake_loss += F.relu(1 + prediction)
-
-        real_loss = real_loss/real_batch_size
-        fake_loss = fake_loss/fake_batch_size
-
-        discriminator_loss = real_loss + fake_loss
-
-        return discriminator_loss
+        loss = torch.mean(F.relu(1 - real_prediction)) + torch.mean(F.relu(1 + fake_prediction))
+        return loss
 
 class Generator_loss:
     def __call__(self, fake_prediction):
-        batch_size = fake_prediction.shape[0]
-
-        generator_loss = 0
-
-        for prediction in fake_prediction:
-            generator_loss += -prediction
-
-        generator_loss = generator_loss/batch_size
-
+        generator_loss = -torch.mean(fake_prediction)
         return generator_loss
 
 class Joint_refinement_loss:
