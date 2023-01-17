@@ -21,6 +21,8 @@ parser.add_argument('--val_path', type=str,  help='(Optinal) Validation image fo
 parser.add_argument('--save_model', type=str,  help='(Optinal) Folder to save all models')
 
 if __name__ == '__main__':
+    assert cmd_args.train_path is not None
+
     cmd_args = parser.parse_args()
 
     coarse_model = CoarseNet().to('cuda')

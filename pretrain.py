@@ -23,6 +23,7 @@ if __name__ == '__main__':
     cmd_args = parser.parse_args()
 
     assert cmd_args.model in ['coarse', 'super_resolution', 'refinement']
+    assert cmd_args.train_path is not None
 
     if (cmd_args.model == 'coarse') or (cmd_args.model == 'refinement'):
         if cmd_args.model == 'coarse':
