@@ -298,7 +298,7 @@ class Discriminator(nn.Module):
         self.spectral_conv3 = nn.Sequential(spectral_norm(nn.Conv2d(128, 256, 5, 2, 2, 1)), nn.LeakyReLU())
         self.spectral_conv4 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1)), nn.LeakyReLU())
         self.spectral_conv5 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1)), nn.LeakyReLU())
-        self.classifier = nn.Linear(4096, 1)
+        self.classifier = nn.Linear(65536, 1)
 
     def forward(self, image, mask):
         x = torch.cat((image, mask), dim=1)  # Shape batch x 4 x 512 x 512
@@ -308,8 +308,7 @@ class Discriminator(nn.Module):
         x = self.spectral_conv3(x)  # Shape batch x 256 x 64 x 64
         x = self.spectral_conv4(x)  # Shape batch x 256 x 32 x 32
         x = self.spectral_conv5(x)  # Shape batch x 256 x 16 x 16
-
-        x = x.view(-1, 4096)
+        x = x.view(-1, 65536)
 
         output = self.classifier(x)
 
