@@ -3,8 +3,8 @@ from datasets import *
 import glob
 from network import *
 import os
-import torch.multiprocessing as mp
 from torchvision.models import vgg19
+import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
