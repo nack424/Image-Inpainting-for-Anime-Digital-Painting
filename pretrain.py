@@ -147,7 +147,7 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
             #Main process save per 10%
             if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
-                torch.save(model.state_dict(), os.path.join(save_model, model + str(epoch + 1) + '.pt'))
+                torch.save(ddp_model.state_dict(), os.path.join(save_model, model_name + str(epoch + 1) + '.pt'))
 
 if __name__ == '__main__':
     os.environ["MASTER_ADDR"] = "localhost"
