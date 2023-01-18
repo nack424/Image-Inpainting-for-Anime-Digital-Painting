@@ -53,7 +53,7 @@ class Gradient_loss:
 
     def __call__(self, predict, groundtruth):
         if predict.is_cuda:
-            device = 'cuda'
+            device = predict.device
         else:
             device = 'cpu'
 
