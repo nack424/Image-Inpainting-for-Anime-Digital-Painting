@@ -4,6 +4,8 @@
 __pycache__
 discriminator_debug.py
 image_inpainting.ipynb
+image_preprocess.py
+run.ipynb
 sample
 save_model
 test.py
