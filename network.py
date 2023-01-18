@@ -173,7 +173,7 @@ class ContextualAttention(nn.Module):
         x_shape = x.shape
 
         if x.is_cuda:
-            device = 'cuda'
+            device = x.device
         else:
             device = 'cpu'
 
