@@ -39,7 +39,6 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
         train_dataset = MaskedDataset(train_path, 1)
         sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-
         train_dataloader = DataLoader(train_dataset, batch_size = batch_size, sampler=sampler)
 
         if val_path is not None and is_main_process(): #Only main process to check validation set
@@ -53,7 +52,6 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
         train_dataset = SuperResolutionDataset(train_path)
         sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
 
         if val_path is not None and is_main_process():
