@@ -4,8 +4,8 @@ import glob
 from network import *
 import os
 import torch.multiprocessing as mp
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torchvision.models import vgg19
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from utils.distributed import *
