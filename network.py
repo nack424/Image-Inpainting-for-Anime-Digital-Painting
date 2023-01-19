@@ -1,4 +1,3 @@
-import torch.nn.functional as F
 from torch.nn.utils.parametrizations import spectral_norm
 from utils.tensor import *
 
@@ -162,88 +161,20 @@ class SuperResolutionNet(nn.Module):
 
 ####Refinement network####
 class ContextualAttention(nn.Module):
-    def __init__(self, block_size, stride, attention_rate, softmax_scale=10):
+    def __init__(self, attention_rate):
         super(ContextualAttention, self).__init__()
-        self.block_size = block_size
-        self.stride = stride
         self.attention_rate = attention_rate
-        self.softmax_scale = softmax_scale
 
     def forward(self, x, mask):
-        x_shape = x.shape
+        b, c, h, w = x.shape
 
-        if x.is_cuda:
-            device = x.device
-        else:
-            device = 'cpu'
+        x_small, mask_small = F.interpolate(x, size = (h//self.attention_rate, w//self.attention_rate), mode = 'nearest'), \
+                              F.interpolate(mask, size=(h//self.attention_rate, w//self.attention_rate), mode='nearest')
 
-        if mask.shape[2] != x.shape[2] or mask.shape[3] != x.shape[3]:
-            mask = F.interpolate(mask, size=(x.shape[2], x.shape[3]))
+        attention_map = get_attention_map(x_small, mask_small).reshape(-1, (h**2)//(self.attention_rate**2),
+                                                                       (w**2)//(self.attention_rate**2))
 
-        x_clone = x.clone()
-        mask_clone = mask.clone()
-
-        raw_x_block_size = 2 * self.attention_rate
-
-        x_unfold = pad_and_unfold(x, raw_x_block_size, self.attention_rate * self.stride)  # Shape N x k*k*C x L
-        x_unfold = x_unfold.view(x_shape[0], x_shape[1], raw_x_block_size, raw_x_block_size,
-                                 -1)  # Shape N x C x k x k x L
-        x_unfold = torch.permute(x_unfold, (0, 4, 1, 2, 3))  # Shape N x L x C x k x k
-
-        x_unfold_minibatch = torch.split(x_unfold, 1, dim=0)  # Filter for devoncolve
-
-        x_resize = F.interpolate(x, scale_factor=1. / self.attention_rate, mode='nearest')
-        x_resize_shape = x_resize.shape  # Shape N x C x H/rate x W/rate
-
-        x_resize_minibatch = torch.split(x_resize, 1, dim=0)  # Input for convolve
-
-        x_resize_unfold = pad_and_unfold(x_resize, self.block_size, self.stride)
-        x_resize_unfold = x_resize_unfold.view(x_resize_shape[0], x_resize_shape[1], self.block_size, self.block_size,
-                                               -1)
-        x_resize_unfold = torch.permute(x_resize_unfold, (0, 4, 1, 2, 3))
-        x_resize_unfold_minibatch = torch.split(x_resize_unfold, 1, dim=0)  # Filter for convolve
-
-        mask_resize = F.interpolate(mask, scale_factor=1. / self.attention_rate, mode='nearest')
-        mask_resize_shape = mask_resize.shape
-
-        mask_resize_unfold = pad_and_unfold(mask_resize, self.block_size, self.stride)
-        mask_resize_unfold = mask_resize_unfold.view(mask_resize_shape[0], mask_resize_shape[1], self.block_size,
-                                                     self.block_size, -1)
-        mask_resize_unfold = torch.permute(mask_resize_unfold, (0, 4, 1, 2, 3))
-        mask_resize_unfold_minibatch = torch.split(mask_resize_unfold, 1, dim=0)  # For filter mask region
-
-        output = []
-
-        for x_input, x_filter, x_defilter, mask_filter in zip(x_resize_minibatch, x_resize_unfold_minibatch,
-                                                              x_unfold_minibatch, mask_resize_unfold_minibatch):
-            x_filter = x_filter[0]  # Shape L x C x k x k
-            escape_nan = torch.FloatTensor([1e-4]).to(device)
-            x_filter_normed = x_filter / torch.sqrt(
-                reduce_sum(torch.pow(x_filter, 2) + escape_nan, axis=[1, 2, 3], keepdim=True))
-
-            x_input = same_padding(x_input, self.block_size, 1, 1)
-
-            attention = F.conv2d(x_input, x_filter_normed, stride=1)  # Shape 1 x L x H/rate x W/rate
-            attention = attention.view(1, x_resize_shape[2] * x_resize_shape[3], x_resize_shape[2],
-                                       x_resize_shape[3])  # Shape 1 x H/rate*W/rate x H/rate x W/rate
-
-            mask_filter = mask_filter[0]  # Shape L x C x k x k
-            mask_filter = (reduce_mean(mask_filter, axis=[1, 2, 3], keepdim=True) == 0.).to(torch.float32)
-            mask_filter = torch.permute(mask_filter, (1, 0, 2, 3))  # Shape 1 x L x 1 x 1
-
-            masked_attention = attention * mask_filter
-            masked_attention = F.softmax(masked_attention * self.softmax_scale, dim=1)
-            masked_attention = masked_attention * mask_filter  # Product softmax attention only for masked region
-
-            x_defilter = x_defilter[0]
-
-            output_i = F.conv_transpose2d(masked_attention, x_defilter, stride=self.attention_rate, padding=1)
-            output.append(output_i)
-
-        output = torch.cat(output, dim=0)
-        output.contiguous().view(x_shape)
-
-        output = mask_clone * output + (1 - mask_clone) * x_clone
+        output = apply_attention_map(x, attention_map, mask)
 
         return output
 
@@ -256,7 +187,7 @@ class RefinementNet(nn.Module):
         self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.bottleneck_block = DilationResidualGateBlock(64, 256, 3, [2, 4, 8])
         self.gate1 = GateConv2d(128, 256, 3)
-        self.contexual_attetion = ContextualAttention(3, 1, 2, 10)
+        self.contexual_attetion = ContextualAttention(2)
         self.gate2 = GateConv2d(128, 256, 3)
         # Concat output of bottleneck and attention
         self.upsample1 = nn.Upsample(scale_factor=2, mode='nearest')
