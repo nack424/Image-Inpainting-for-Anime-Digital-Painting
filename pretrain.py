@@ -164,5 +164,3 @@ if __name__ == '__main__':
                                cmd_args.load_model, cmd_args.model, cmd_args.train_path, cmd_args.val_path,
                                cmd_args.save_model),
              nprocs = cmd_args.world_size, join=True)
-
-    dist.destroy_process_group() #Clean up
