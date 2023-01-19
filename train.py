@@ -73,7 +73,9 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
     inpaint_parameters = list(ddp_coarse.parameters()) + list(ddp_super_resolution.parameters()) + \
                          list(ddp_refinement.parameters())
 
-    discriminator_optimizer = torch.optim.AdamW(ddp_discriminator.parameters(), lr = lr)
+    discriminator_lr_scale = 1
+
+    discriminator_optimizer = torch.optim.AdamW(ddp_discriminator.parameters(), lr = discriminator_lr_scale*lr)
     inpaint_optimizer = torch.optim.AdamW(inpaint_parameters, lr = lr)
 
     scaler = torch.cuda.amp.GradScaler(init_scale=16834.0, enabled=True)
@@ -90,13 +92,17 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
         total_train_super_resolution_loss = 0
         total_train_refinement_loss = 0
         total_train_inpaint_loss = 0
-        total_train_discriminator_loss = 0
+        total_train_refinement_gan_loss = 0
+        total_train_discriminator_real_loss = 0
+        total_train_discriminator_fake_loss = 0
 
         total_val_coarse_loss = 0
         total_val_super_resolution_loss = 0
         total_val_refinement_loss = 0
         total_val_inpaint_loss = 0
-        total_val_discriminator_loss = 0
+        total_val_refinement_gan_loss = 0
+        total_val_discriminator_real_loss = 0
+        total_val_discriminator_fake_loss = 0
 
         num_batch = len(train_dataloader)
 
@@ -126,16 +132,18 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
                 # print(f'fake prediction : {fake_prediction}')
                 # print('\n')
 
-                discriminator_loss = discriminator_loss_function(real_prediction, fake_prediction)
-                refinement_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
+                discriminator_loss, discriminator_real_loss, discriminator_fake_loss = \
+                    discriminator_loss_function(real_prediction, fake_prediction)
+                refinement_loss, refinement_gan_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
 
                 inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
 
                 total_train_coarse_loss += coarse_loss.item()
                 total_train_super_resolution_loss += super_resolution_loss.item()
                 total_train_refinement_loss += refinement_loss.item()
-                total_train_discriminator_loss += discriminator_loss.item()
-                total_train_inpaint_loss += inpaint_loss.item()
+                total_train_discriminator_real_loss += discriminator_real_loss.item()
+                total_train_discriminator_fake_loss += discriminator_fake_loss.item()
+                total_train_refinement_gan_loss += refinement_gan_loss.item()
 
             scaler.scale(discriminator_loss).backward(inputs = list(ddp_discriminator.parameters()), retain_graph=True)
             scaler.step(discriminator_optimizer)
@@ -177,39 +185,45 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
                     total_val_coarse_loss += coarse_loss.item()
                     total_val_super_resolution_loss += super_resolution_loss.item()
                     total_val_refinement_loss += refinement_loss.item()
-                    total_val_discriminator_loss += discriminator_loss.item()
-                    total_val_inpaint_loss += inpaint_loss.item()
+                    total_val_discriminator_real_loss += discriminator_real_loss.item()
+                    total_val_discriminator_fake_loss += discriminator_fake_loss.item()
+                    total_val_refinement_gan_loss += refinement_gan_loss.item()
 
         average_train_coarse_loss = total_train_coarse_loss / num_batch
         average_train_super_resolution_loss = total_train_super_resolution_loss / num_batch
         average_train_refinement_loss = total_train_refinement_loss / num_batch
-        average_train_inpaint_loss = total_train_inpaint_loss / num_batch
-        average_train_discriminator_loss = total_train_discriminator_loss / num_batch
+        average_train_refinement_gan_loss = total_train_refinement_gan_loss / num_batch
+        average_train_discriminator_real_loss = total_train_discriminator_real_loss / num_batch
+        average_train_discriminator_fake_loss = total_train_discriminator_fake_loss / num_batch
 
         if is_main_process():
             if val_path is not None:
                 average_val_coarse_loss = total_val_coarse_loss / num_batch
                 average_val_super_resolution_loss = total_val_super_resolution_loss / num_batch
                 average_val_refinement_loss = total_val_refinement_loss / num_batch
-                average_val_inpaint_loss = total_val_inpaint_loss / num_batch
-                average_val_discriminator_loss = total_val_discriminator_loss / num_batch
+                average_val_refinement_gan_loss = total_val_refinement_gan_loss / num_batch
+                average_val_discriminator_real_loss = total_val_discriminator_real_loss / num_batch
+                average_val_discriminator_fake_loss = total_val_discriminator_fake_loss / num_batch
                 wandb.log({"train_coarse_loss": average_train_coarse_loss,
                           "train_SR_loss": average_train_super_resolution_loss,
                            "train_refinement_loss": average_train_refinement_loss,
-                          "train_total_loss": average_train_inpaint_loss,
-                           "train_discriminator_loss": average_train_discriminator_loss,
+                          "train_refinement_gan_loss": average_train_refinement_gan_loss,
+                           "train_discriminator_real_loss": average_train_discriminator_real_loss,
+                           "train_discriminator_fake_loss": average_train_discriminator_fake_loss,
                            "val_coarse_loss": average_val_coarse_loss,
                            "val_SR_loss": average_val_super_resolution_loss,
                            "val_refinement_loss": average_val_refinement_loss,
-                           "val_total_loss": average_val_inpaint_loss,
-                           "val_discriminator_loss": average_val_discriminator_loss
+                           "val_refinement_gan_loss": average_val_refinement_gan_loss,
+                           "val_discriminator_real_loss": average_val_discriminator_real_loss,
+                           "val_discriminator_fake_loss": average_val_discriminator_fake_loss,
                            })
             else:
                 wandb.log({"train_coarse_loss": average_train_coarse_loss,
                           "train_SR_loss": average_train_super_resolution_loss,
                            "train_refinement_loss": average_train_refinement_loss,
-                          "train_total_loss": average_train_inpaint_loss,
-                           "train_discriminator_loss": average_train_discriminator_loss})
+                          "train_refinement_gan_loss": average_train_refinement_gan_loss,
+                           "train_discriminator_real_loss": average_train_discriminator_real_loss,
+                           "train_discriminator_fake_loss": average_train_discriminator_fake_loss})
 
         if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
             torch.save(ddp_coarse.state_dict(), os.path.join(save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))
@@ -232,8 +246,6 @@ if __name__ == '__main__':
                                cmd_args.load_discriminator, cmd_args.load_inpaint, cmd_args.mask_type,
                                cmd_args.train_path, cmd_args.val_path, cmd_args.save_model),
              nprocs = cmd_args.world_size, join=True)
-
-    dist.destroy_process_group() #Clean up
 
 
 

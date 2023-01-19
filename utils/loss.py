@@ -73,7 +73,9 @@ class Gradient_loss:
 class Discriminator_loss:
     def __call__(self, real_prediction, fake_prediction):
         loss = torch.mean(F.relu(1 - real_prediction)) + torch.mean(F.relu(1 + fake_prediction))
-        return loss
+        real_loss = torch.mean(F.relu(1 - real_prediction))
+        fake_loss = torch.mean(F.relu(1 + fake_prediction))
+        return loss, real_loss, fake_loss
 
 class Generator_loss:
     def __call__(self, fake_prediction):
@@ -90,4 +92,5 @@ class Joint_refinement_loss:
 
     def __call__(self, predict, groundtruth, fake_prediction):
         return self.coarse_loss(predict, groundtruth) + self.gan_loss_weight*self.gan_loss(fake_prediction) + \
-               self.gradient_loss_weight*self.gradient_loss(predict, groundtruth)
+               self.gradient_loss_weight*self.gradient_loss(predict, groundtruth), \
+            self.gan_loss_weight*self.gan_loss(fake_prediction)
