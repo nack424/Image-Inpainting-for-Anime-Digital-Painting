@@ -243,4 +243,4 @@ class Discriminator(nn.Module):
 
         output = self.classifier(x)
 
-        return x
+        return output
