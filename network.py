@@ -310,6 +310,6 @@ class Discriminator(nn.Module):
         x = self.spectral_conv5(x)  # Shape batch x 256 x 16 x 16
         x = x.view(-1, 65536)
 
-        # output = self.classifier(x)
+        output = self.classifier(x)
 
         return x
