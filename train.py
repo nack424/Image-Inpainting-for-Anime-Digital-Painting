@@ -177,10 +177,9 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
                     real_prediction = ddp_discriminator(hr_groundtruth, mask)
                     fake_prediction = ddp_discriminator(output, mask)
 
-                    discriminator_loss = discriminator_loss_function(real_prediction, fake_prediction)
-                    refinement_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
-
-                    inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
+                    _, discriminator_real_loss, dirscriminator_fake_loss = \
+                        discriminator_loss_function(real_prediction, fake_prediction)
+                    refinement_loss, refinement_gan_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
 
                     total_val_coarse_loss += coarse_loss.item()
                     total_val_super_resolution_loss += super_resolution_loss.item()
