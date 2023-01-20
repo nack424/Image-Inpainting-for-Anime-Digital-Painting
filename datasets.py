@@ -10,7 +10,7 @@ def preprocess(array):
 
     tensor = torch.as_tensor(array, dtype=torch.float32)
     tensor = torch.permute(tensor, (2, 0, 1))
-    tensor = tensor / 255.
+    tensor = (tensor-127.5) / 127.5
 
     return tensor
 
@@ -19,7 +19,7 @@ def postprocess(tensor):
     assert len(tensor.shape) == 4
 
     output = torch.permute(tensor, (0, 2, 3, 1))
-    output = 255. * output
+    output = (127.5 * output) + 127.5
     output = np.array(output, dtype='uint8')
     return output
 
