@@ -58,12 +58,12 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
             val_dataset = SuperResolutionDataset(val_path)
             val_dataloader = DataLoader(val_dataset, batch_size = batch_size)
 
-    ddp_model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-
     if load_model is not None:
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
-        ddp_model.load_state_dict(torch.load(glob.glob(os.path.join(load_model, model_name + '*'))[0],
+        model.load_state_dict(torch.load(glob.glob(os.path.join(load_model, model_name + '*'))[0],
                                              map_location=map_location))
+
+    ddp_model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr = lr)
 
@@ -149,7 +149,7 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
             #Main process save per 10%
             if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
-                torch.save(ddp_model.state_dict(), os.path.join(save_model, model_name + str(epoch + 1) + '.pt'))
+                torch.save(ddp_model.module.state_dict(), os.path.join(save_model, model_name + str(epoch + 1) + '.pt'))
 
 if __name__ == '__main__':
     os.environ["MASTER_ADDR"] = "localhost"

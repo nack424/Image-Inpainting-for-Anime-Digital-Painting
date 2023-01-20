@@ -34,6 +34,18 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
 
     discriminator_model = Discriminator().to(rank)
 
+    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+    if load_inpaint is not None:
+        coarse_model.load_state_dict(torch.load(glob.glob(os.path.join(load_inpaint, 'coarse*'))[0], map_location=map_location))
+        super_resolution_model.load_state_dict(torch.load(glob.glob(os.path.join(load_inpaint, 'super_resolution*'))[0],
+                                                        map_location=map_location))
+        refinement_model.load_state_dict(torch.load(glob.glob(os.path.join(load_inpaint, 'refinement*'))[0],
+                                                  map_location=map_location))
+
+    if load_discriminator is not None:
+        discriminator_model.load_state_dict(torch.load(glob.glob(os.path.join(load_discriminator, 'discriminator*'))[0],
+                                                     map_location=map_location))
+
     vgg19_model = vgg19(weights='IMAGENET1K_V1')
     vgg19_model = vgg19_model.features[:21].to(rank)
 
@@ -50,19 +62,6 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
     if val_path is not None and is_main_process():
         val_dataset = JointDataset(val_path, mask_type)
         val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
-
-    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
-
-    if load_inpaint is not None:
-        ddp_coarse.load_state_dict(torch.load(glob.glob(os.path.join(load_inpaint, 'coarse*'))[0], map_location=map_location))
-        ddp_super_resolution.load_state_dict(torch.load(glob.glob(os.path.join(load_inpaint, 'super_resolution*'))[0],
-                                                        map_location=map_location))
-        ddp_refinement.load_state_dict(torch.load(glob.glob(os.path.join(load_inpaint, 'refinement*'))[0],
-                                                  map_location=map_location))
-
-    if load_discriminator is not None:
-        ddp_discriminator.load_state_dict(torch.load(glob.glob(os.path.join(load_discriminator, 'discriminator*'))[0],
-                                                     map_location=map_location))
 
     coarse_loss_function = Coarse_loss(vgg19_model, vgg_loss_weight=0.01)
     super_resolution_loss_function = L1_loss()
@@ -224,12 +223,12 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
                            "train_discriminator_fake_loss": average_train_discriminator_fake_loss})
 
         if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
-            torch.save(ddp_coarse.state_dict(), os.path.join(save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))
-            torch.save(ddp_super_resolution.state_dict(),
+            torch.save(ddp_coarse.module.state_dict(), os.path.join(save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))
+            torch.save(ddp_super_resolution.module.state_dict(),
                        os.path.join(save_model, 'super_resolution_joint' + str(epoch + 1) + '.pt'))
-            torch.save(ddp_refinement.state_dict(),
+            torch.save(ddp_refinement.module.state_dict(),
                        os.path.join(save_model, 'refinement_joint' + str(epoch + 1) + '.pt'))
-            torch.save(ddp_discriminator.state_dict(),
+            torch.save(ddp_discriminator.module.state_dict(),
                        os.path.join(save_model, 'discriminator_joint' + str(epoch + 1) + '.pt'))
 
 if __name__ == '__main__':
