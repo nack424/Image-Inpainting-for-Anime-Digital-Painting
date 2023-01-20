@@ -1,122 +1,48 @@
-import math
 import torch
 from torch import nn
-import torch.nn.functional as F
 
-def space_to_depth(x, block_size):
-    n, c, h, w = x.size()
-    unfolded_x = F.unfold(x, block_size, stride=block_size)
+def reduce_sum(tensor, axis, keepdim=False):
+    for i in sorted(axis, reverse=True):
+        tensor = torch.sum(tensor, dim=i, keepdim=keepdim)
 
-    return unfolded_x.view(n, c * block_size ** 2, h // block_size, w // block_size)
+    return tensor
 
+def reduce_mean(tensor, axis, keepdim=False):
+    for i in sorted(axis, reverse=True):
+        tensor = torch.mean(tensor, dim=i, keepdim=keepdim)
 
-def extract_image_patches(x, patch_size, strides):
-    if x.is_cuda:
-        device = x.device
-    else:
-        device = 'cpu'
+    return tensor
 
-    channels = x.shape[1]
-    kernel_size = patch_size * patch_size * channels
-    kernel = torch.reshape(torch.eye(kernel_size, dtype=x.dtype),
-                           (-1, channels, patch_size, patch_size)).to(device)
-    patches = F.conv2d(x, kernel, stride=strides, padding=patch_size // 2)
-    return patches
+def same_padding(tensor, kernel_size, stride, dilation):
+    assert len(tensor.shape) == 4
 
+    image_shape = tensor.shape  # batch x channel x height x width
 
-def get_attention_map(x, mask, propagation_size=3, softmax_scale=10, patch_size=3):
-    if x.is_cuda:
-        device = x.device
-    else:
-        device = 'cpu'
+    output_height = (image_shape[2] + stride - 1) // stride
+    output_width = (image_shape[3] + stride - 1) // stride
 
-    b, c, h, w = x.shape
+    padding_height = (stride * (output_height - 1) - image_shape[2] + dilation * (kernel_size - 1) + 1) / 2
+    padding_width = (stride * (output_width - 1) - image_shape[3] + dilation * (kernel_size - 1) + 1) / 2
 
-    if mask.shape[2] != x.shape[2] or mask.shape[3] != x.shape[3]:
-        mask = F.interpolate(mask, size=(x.shape[2], x.shape[3]))
+    padding_top = padding_bottom = max(round(padding_height), 0)
+    padding_left = padding_right = max(round(padding_width), 0)
 
-    patches = extract_image_patches(x, patch_size, 1)  # Shape B x P*P*C x H x W
-    patches = patches.permute(0, 2, 3, 1)
+    padder = nn.ZeroPad2d((padding_left, padding_right, padding_top, padding_bottom))
 
-    # Normalizing patches.  (B x H x W x P*P*C)
-    patches_normalized = patches / torch.max(torch.norm(patches, dim=-1, keepdim=True), torch.tensor(1e-9).to(device))
+    output = padder(tensor)
 
-    # Transpose inverted mask.  (B x P*P*C x H*W)
-    patches_transposed = patches.reshape(b, h * w, 3 * 3 * c).permute(0, 2, 1)
-
-    # (B x H*W x P*P*C)
-    patches_normalized_reshaped = patches_normalized.reshape(b, h * w, patch_size * patch_size * c)
-
-    # (B x H*W x H*W)
-    attention_map = torch.matmul(patches_normalized_reshaped, patches_transposed)
-
-    if propagation_size > 0:
-        # Attention propagation.
-        prop_weight = torch.eye(propagation_size).reshape(1, 1, propagation_size, propagation_size).to(device)
-
-        proped_horizontally = nn.functional.conv2d(attention_map.unsqueeze(1), prop_weight, stride=1, padding=1)
-        proped_horizontally = proped_horizontally.permute(0, 2, 3, 1)
-
-        transposed = proped_horizontally.reshape(b, h, w, h, w).permute(0, 2, 1, 4, 3).reshape(b, w * h, w * h, 1)
-        transposed = transposed.permute(0, 3, 1, 2)
-
-        proped_vertically = nn.functional.conv2d(transposed, prop_weight, stride=1, padding=1)
-        proped_vertically = proped_vertically.permute(0, 2, 3, 1)
-
-        attention_map = proped_vertically.reshape(b, w, h, w, h).permute(0, 2, 1, 4, 3).reshape(b, h * w, h * w)
-
-    mask_filter = nn.functional.max_pool2d(mask, 3, 1, 1).permute(0, 2, 3, 1).reshape(attention_map.shape[0], 1, -1)
-
-    if softmax_scale > 0.0:
-        attention_map_scaled = attention_map * softmax_scale
-        attention_map_normalized = attention_map_scaled - torch.max(attention_map_scaled, dim=-1, keepdim=True)[0]
-        attention_map_exp = torch.exp(attention_map_normalized) * (1.0 - mask_filter)
-        attention_map = attention_map_exp / torch.maximum(torch.sum(attention_map_exp, dim=-1, keepdim=True),
-                                                          torch.full((attention_map_exp.shape[0],
-                                                                      attention_map_exp.shape[1], 1), 1e-09).to(device))
-
-    return attention_map
+    return output
 
 
-def apply_attention_map(x, attention, mask):
-    if mask.shape[2] != x.shape[2] or mask.shape[3] != x.shape[3]:
-        mask = F.interpolate(mask, size=(x.shape[2], x.shape[3]))
+def pad_and_unfold(tensor, block_size, stride, dilation=1, padding='same'):
+    assert len(tensor.shape) == 4 and padding in ['same', 'valid']
 
-    b, c, h, w = x.shape
+    if padding == 'same':
+        tensor = same_padding(tensor, block_size, stride,
+                              dilation)  # Make number of block equal to tensor width x tensor height
 
-    attention_size = attention.shape[1]
-    square_block_size = h * w // attention_size
+    unfold = nn.Unfold(block_size, dilation, 0, stride)
 
-    if square_block_size * attention_size != h * w:
-        raise ValueError(
-            'Invalid shape. The multiplication of the input height({}) and '
-            'width({}) must be a multiple of the second dimension size({}) of '
-            'the attention map.'.format(h, w, attention_size))
+    output = unfold(tensor)
 
-    block_size = int(math.sqrt(square_block_size))
-
-    if block_size * block_size != square_block_size:
-        raise ValueError(
-            'Invalid shape. The multiplication of the input height and width '
-            'divided by the number of the second dimension of the attention map'
-            '({}) must be a square of an integer.'.format(square_block_size))
-
-    if block_size > 1:
-        depth = space_to_depth(x, block_size)
-    else:
-        depth = x
-
-    depth = depth.permute(0, 2, 3, 1)
-
-    h, w = depth.shape[1], depth.shape[2]
-    right = depth.reshape(b, -1, c * block_size * block_size)
-
-    mult = torch.matmul(attention, right).reshape(b, h, w, -1)
-
-    if block_size > 1:
-        mult = F.pixel_shuffle(mult.permute(0, 3, 1, 2), block_size)
-
-    else:
-        mult = mult.permute(0, 3, 1, 2)
-
-    return x * (1.0 - mask) + mult * mask
+    return output  # Shape batch x no of numbers in each block x no of block(L)
