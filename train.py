@@ -91,7 +91,6 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
         total_train_coarse_loss = 0
         total_train_super_resolution_loss = 0
         total_train_refinement_loss = 0
-        total_train_inpaint_loss = 0
         total_train_refinement_gan_loss = 0
         total_train_discriminator_real_loss = 0
         total_train_discriminator_fake_loss = 0
@@ -99,7 +98,6 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
         total_val_coarse_loss = 0
         total_val_super_resolution_loss = 0
         total_val_refinement_loss = 0
-        total_val_inpaint_loss = 0
         total_val_refinement_gan_loss = 0
         total_val_discriminator_real_loss = 0
         total_val_discriminator_fake_loss = 0
