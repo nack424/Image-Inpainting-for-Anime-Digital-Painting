@@ -180,9 +180,6 @@ class ContextualAttention(nn.Module):
         if mask.shape[2] != x.shape[2] or mask.shape[3] != x.shape[3]:
             mask = F.interpolate(mask, size=(x.shape[2], x.shape[3]))
 
-        x_clone = x.clone()
-        mask_clone = mask.clone()
-
         raw_x_block_size = 2 * self.attention_rate
 
         x_unfold = pad_and_unfold(x, raw_x_block_size, self.attention_rate * self.stride)  # Shape N x k*k*C x L
@@ -234,8 +231,6 @@ class ContextualAttention(nn.Module):
 
         output = torch.cat(output, dim=0)
         output.contiguous().view(x_shape)
-
-        output = mask_clone * output + (1 - mask_clone) * x_clone
 
         return output
 
