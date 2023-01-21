@@ -25,7 +25,7 @@ parser.add_argument('--train_path', type=str,  help='Training image folder')
 parser.add_argument('--val_path', type=str,  help='(Optinal) Validation image folder')
 parser.add_argument('--world_size', type=int, default=1, help='Number of training process (Should be equal to number of GPUs)')
 
-def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inpaint, mask_type,
+def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load_discriminator, load_inpaint, mask_type,
           train_path, val_path, save_model):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
@@ -73,7 +73,7 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator, load_inp
     inpaint_parameters = list(ddp_coarse.parameters()) + list(ddp_super_resolution.parameters()) + \
                          list(ddp_refinement.parameters())
 
-    discriminator_lr_scale = cmd_args.discriminator_lr_scale
+    discriminator_lr_scale = discriminator_lr_scale
 
     discriminator_optimizer = torch.optim.AdamW(ddp_discriminator.parameters(), lr = discriminator_lr_scale*lr)
     inpaint_optimizer = torch.optim.AdamW(inpaint_parameters, lr = lr)
@@ -241,8 +241,8 @@ if __name__ == '__main__':
     assert cmd_args.train_path is not None
 
     mp.spawn(train, args = (cmd_args.world_size, cmd_args.batch_size, cmd_args.epochs, cmd_args.learning_rate,
-                               cmd_args.load_discriminator, cmd_args.load_inpaint, cmd_args.mask_type,
-                               cmd_args.train_path, cmd_args.val_path, cmd_args.save_model),
+                            cmd_args.discriminator_lr_scale,cmd_args.load_discriminator, cmd_args.load_inpaint,
+                            cmd_args.mask_type, cmd_args.train_path, cmd_args.val_path, cmd_args.save_model),
              nprocs = cmd_args.world_size, join=True)
 
 
