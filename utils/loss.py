@@ -66,7 +66,6 @@ class Gradient_loss:
         vertical_grad = F.conv2d(self.vertical_padder(different), self.vertical_filter)
 
         output = torch.mean(torch.square(horizontal_grad) + torch.square(vertical_grad))/2
-
         return output
 
 
@@ -74,7 +73,7 @@ class Discriminator_loss:
     def __call__(self, real_prediction, fake_prediction):
         real_loss = torch.mean(F.relu(1 - real_prediction))
         fake_loss = torch.mean(F.relu(1 + fake_prediction))
-        loss = torch.mean(F.relu(1 - real_prediction)) + torch.mean(F.relu(1 + fake_prediction))
+        loss = real_loss + fake_loss
         return loss, real_loss, fake_loss
 
 class Generator_loss:
@@ -92,6 +91,7 @@ class Joint_refinement_loss:
 
     def __call__(self, predict, groundtruth, fake_prediction):
         scale_gan_loss = self.gan_loss_weight*self.gan_loss(fake_prediction)
+
         return self.coarse_loss(predict, groundtruth) + scale_gan_loss + \
                self.gradient_loss_weight*self.gradient_loss(predict, groundtruth), \
             scale_gan_loss
