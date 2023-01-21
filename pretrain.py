@@ -18,10 +18,10 @@ parser.add_argument('--epochs', type=int, default=10, help='Number of epochs to 
 parser.add_argument('--learning_rate', type=int, default=1e-5, help='Control amount of weight change during optimization')
 parser.add_argument('--load_model', type=str, help='(Optinal) Folder contain saved model (Model must match --model)')
 parser.add_argument('--model', type=str, help='Model to train: coarse, super_resolution or refinement')
+parser.add_argument('--save_model', type=str,  help='(Optinal) Folder to save model')
 parser.add_argument('--train_path', type=str,  help='Training image folder')
 parser.add_argument('--val_path', type=str,  help='(Optinal) Validation image folder')
 parser.add_argument('--world_size', type=int, default=1, help='Number of training process (Should be equal to number of GPUs)')
-parser.add_argument('--save_model', type=str,  help='(Optinal) Folder to save model')
 
 def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, train_path, val_path, save_model):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
