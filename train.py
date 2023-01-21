@@ -121,7 +121,7 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                 output = mask*output + (1-mask)*hr_groundtruth #Refinement output
 
                 real_prediction = ddp_discriminator(hr_groundtruth, mask)
-                fake_prediction = ddp_discriminator(output, mask)=
+                fake_prediction = ddp_discriminator(output, mask)
 
                 discriminator_loss, discriminator_real_loss, discriminator_fake_loss = \
                     discriminator_loss_function(real_prediction, fake_prediction)
@@ -166,11 +166,7 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
 
                     output = mask * output + (1 - mask) * hr_groundtruth  # Refinement output
 
-                    real_prediction = ddp_discriminator(hr_groundtruth, mask)
                     fake_prediction = ddp_discriminator(output, mask)
-
-                    _, discriminator_real_loss, discriminator_fake_loss = \
-                        discriminator_loss_function(real_prediction, fake_prediction)
 
                     refinement_loss, refinement_gan_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
 
