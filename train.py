@@ -92,15 +92,13 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
         total_train_super_resolution_loss = 0
         total_train_refinement_other_loss = 0
         total_train_refinement_gan_loss = 0
+        total_train_discriminator_loss = 0
         total_train_discriminator_real_loss = 0
         total_train_discriminator_fake_loss = 0
 
         total_val_coarse_loss = 0
         total_val_super_resolution_loss = 0
         total_val_refinement_other_loss = 0
-        total_val_refinement_gan_loss = 0
-        total_val_discriminator_real_loss = 0
-        total_val_discriminator_fake_loss = 0
 
         num_batch = len(train_dataloader)
 
@@ -123,12 +121,7 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                 output = mask*output + (1-mask)*hr_groundtruth #Refinement output
 
                 real_prediction = ddp_discriminator(hr_groundtruth, mask)
-                fake_prediction = ddp_discriminator(output, mask)
-
-                # print(f'epoch : {epoch}')
-                # print(f'real prediction : {real_prediction}')
-                # print(f'fake prediction : {fake_prediction}')
-                # print('\n')
+                fake_prediction = ddp_discriminator(output, mask)=
 
                 discriminator_loss, discriminator_real_loss, discriminator_fake_loss = \
                     discriminator_loss_function(real_prediction, fake_prediction)
@@ -139,6 +132,7 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                 total_train_coarse_loss += coarse_loss.item()
                 total_train_super_resolution_loss += super_resolution_loss.item()
                 total_train_refinement_other_loss += refinement_loss.item() - refinement_gan_loss.item()
+                total_train_discriminator_loss += discriminator_loss.item()
                 total_train_discriminator_real_loss += discriminator_real_loss.item()
                 total_train_discriminator_fake_loss += discriminator_fake_loss.item()
                 total_train_refinement_gan_loss += refinement_gan_loss.item()
@@ -183,14 +177,12 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                     total_val_coarse_loss += coarse_loss.item()
                     total_val_super_resolution_loss += super_resolution_loss.item()
                     total_val_refinement_other_loss += refinement_loss.item() - refinement_gan_loss.item()
-                    total_val_discriminator_real_loss += discriminator_real_loss.item()
-                    total_val_discriminator_fake_loss += discriminator_fake_loss.item()
-                    total_val_refinement_gan_loss += refinement_gan_loss.item()
 
         average_train_coarse_loss = total_train_coarse_loss / num_batch
         average_train_super_resolution_loss = total_train_super_resolution_loss / num_batch
         average_train_refinement_other_loss = total_train_refinement_other_loss / num_batch
         average_train_refinement_gan_loss = total_train_refinement_gan_loss / num_batch
+        average_train_discriminator_loss = total_train_discriminator_loss / num_batch
         average_train_discriminator_real_loss = total_train_discriminator_real_loss / num_batch
         average_train_discriminator_fake_loss = total_train_discriminator_fake_loss / num_batch
 
@@ -199,27 +191,23 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                 average_val_coarse_loss = total_val_coarse_loss / num_batch
                 average_val_super_resolution_loss = total_val_super_resolution_loss / num_batch
                 average_val_refinement_other_loss = total_val_refinement_other_loss / num_batch
-                average_val_refinement_gan_loss = total_val_refinement_gan_loss / num_batch
-                average_val_discriminator_real_loss = total_val_discriminator_real_loss / num_batch
-                average_val_discriminator_fake_loss = total_val_discriminator_fake_loss / num_batch
                 wandb.log({"train_coarse_loss": average_train_coarse_loss,
                           "train_SR_loss": average_train_super_resolution_loss,
                            "train_refinement_other_loss": average_train_refinement_other_loss,
                           "train_refinement_gan_loss": average_train_refinement_gan_loss,
+                           "train_discriminator_overall_loss": average_train_discriminator_loss,
                            "train_discriminator_real_loss": average_train_discriminator_real_loss,
                            "train_discriminator_fake_loss": average_train_discriminator_fake_loss,
                            "val_coarse_loss": average_val_coarse_loss,
                            "val_SR_loss": average_val_super_resolution_loss,
-                           "val_refinement_other_loss": average_val_refinement_other_loss,
-                           "val_refinement_gan_loss": average_val_refinement_gan_loss,
-                           "val_discriminator_real_loss": average_val_discriminator_real_loss,
-                           "val_discriminator_fake_loss": average_val_discriminator_fake_loss,
+                           "val_refinement_other_loss": average_val_refinement_other_loss
                            })
             else:
                 wandb.log({"train_coarse_loss": average_train_coarse_loss,
                           "train_SR_loss": average_train_super_resolution_loss,
                            "train_refinement_other_loss": average_train_refinement_other_loss,
                           "train_refinement_gan_loss": average_train_refinement_gan_loss,
+                           "train_discriminator_overall_loss": average_train_discriminator_loss,
                            "train_discriminator_real_loss": average_train_discriminator_real_loss,
                            "train_discriminator_fake_loss": average_train_discriminator_fake_loss})
 
