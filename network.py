@@ -253,6 +253,8 @@ class RefinementNet(nn.Module):
         self.last_layer = GateConv2d(32, 3, 3)
 
     def forward(self, masked_image, mask):
+        global_residual = masked_image.clone()
+
         x = torch.cat((masked_image, mask), dim=1)  # Shape batch x 4 x W x H
 
         x = self.encoder_block1(x)
@@ -271,7 +273,9 @@ class RefinementNet(nn.Module):
         x = self.decoder_block1(x)
         x = self.upsample2(x)
         x = self.decoder_block2(x)
-        output = self.last_layer(x)  # Shape batch x 3 x W x H
+        x = self.last_layer(x)  # Shape batch x 3 x W x H
+
+        output = x + global_residual
 
         return output
 
