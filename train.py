@@ -75,8 +75,8 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
 
     discriminator_lr_scale = discriminator_lr_scale
 
-    discriminator_optimizer = torch.optim.AdamW(ddp_discriminator.parameters(), lr = discriminator_lr_scale*lr)
-    inpaint_optimizer = torch.optim.AdamW(inpaint_parameters, lr = lr)
+    discriminator_optimizer = torch.optim.AdamW(ddp_discriminator.parameters(), lr = discriminator_lr_scale*lr, betas=(0.5, 0.9))
+    inpaint_optimizer = torch.optim.AdamW(inpaint_parameters, lr = lr, betas=(0.5, 0.9))
 
     scaler = torch.cuda.amp.GradScaler(init_scale=16834.0, enabled=True)
 
