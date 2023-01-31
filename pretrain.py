@@ -13,7 +13,7 @@ from utils.loss import *
 import wandb
 
 parser = argparse.ArgumentParser(description='My training script.')
-parser.add_argument('--batch_size', type=int, default = 8, help='Amount of data that pass simultaneously to model')
+parser.add_argument('--batch_size', type=int, default=8, help='Amount of data that pass simultaneously to model')
 parser.add_argument('--epochs', type=int, default=10, help='Number of epochs to train')
 parser.add_argument('--learning_rate', type=int, default=1e-5, help='Control amount of weight change during optimization')
 parser.add_argument('--load_model', type=str, help='(Optinal) Folder contain saved model (Model must match --model)')
@@ -156,7 +156,6 @@ if __name__ == '__main__':
     os.environ["MASTER_PORT"] = "29500"
 
     cmd_args = parser.parse_args()
-
     assert cmd_args.model in ['coarse', 'super_resolution', 'refinement']
     assert cmd_args.train_path is not None
 
