@@ -73,8 +73,6 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
         wandb.init(
             project="anime_inpaint_" + model_name
         )
-        wandb.define_metric("train_loss", goal="minimize")
-        wandb.define_metric("val_loss", goal="minimize")
 
     for epoch in range(epochs):
         train_dataloader.sampler.set_epoch(epoch)
