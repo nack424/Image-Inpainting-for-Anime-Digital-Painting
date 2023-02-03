@@ -283,28 +283,22 @@ class RefinementNet(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.spectral_conv1 = nn.Sequential(spectral_norm(nn.Conv2d(3, 64, 5, 2, 2, 1, bias = False)), nn.LeakyReLU(0.2))
+        self.spectral_conv1 = nn.Sequential(spectral_norm(nn.Conv2d(4, 64, 5, 2, 2, 1, bias = False)), nn.LeakyReLU(0.2))
         self.spectral_conv2 = nn.Sequential(spectral_norm(nn.Conv2d(64, 128, 5, 2, 2, 1, bias = False)), nn.LeakyReLU(0.2))
         self.spectral_conv3 = nn.Sequential(spectral_norm(nn.Conv2d(128, 256, 5, 2, 2, 1, bias = False)), nn.LeakyReLU(0.2))
         self.spectral_conv4 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1, bias = False)), nn.LeakyReLU(0.2))
         self.spectral_conv5 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1, bias = False)), nn.LeakyReLU(0.2))
-        self.spectral_conv6 = nn.Sequential(spectral_norm(nn.Conv2d(256, 256, 5, 2, 2, 1, bias = False)), nn.LeakyReLU(0.2))
         self.flatten = nn.Flatten()
 
-        self.attention = nn.Sequential(spectral_norm(nn.Conv2d(4, 64, 5, 1, 2, 1, bias = False)), nn.LeakyReLU(0.2),
-                                       spectral_norm(nn.Conv2d(64, 1, 5, 1, 2, 1, bias = False)), nn.Sigmoid())
 
     def forward(self, image, mask):
-        attention_input = torch.cat([image, mask], dim=1)
-        attention_map = self.attention(attention_input)
-        x = image * attention_map # Shape batch x 3 x 512 x 512
 
+        x = torch.cat([image, mask], dim=1)
         x = self.spectral_conv1(x)  # Shape batch x 64 x 256 x 256
         x = self.spectral_conv2(x)  # Shape batch x 128 x 128 x 128
         x = self.spectral_conv3(x)  # Shape batch x 256 x 64 x 64
         x = self.spectral_conv4(x)  # Shape batch x 256 x 32 x 32
         x = self.spectral_conv5(x)  # Shape batch x 256 x 16 x 16
-        x = self.spectral_conv6(x)  # Shape batch x 256 x 8 x 8
         output = self.flatten(x)
 
-        return output, attention_map
+        return output
