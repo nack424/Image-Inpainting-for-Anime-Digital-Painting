@@ -113,7 +113,6 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
             gather(torch.tensor(total_train_loss))
 
         if is_main_process(): #Only main process to record log
-            print(main_total_train_loss)
             average_train_loss = torch.mean(torch.tensor(main_total_train_loss)) / num_batch
 
             wandb.log({"train_loss": average_train_loss})
