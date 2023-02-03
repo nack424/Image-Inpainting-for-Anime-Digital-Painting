@@ -71,6 +71,8 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
         total_train_loss = 0
         num_batch = len(train_dataloader)
 
+        ddp_model.train()
+
         for batch, data in enumerate(train_dataloader):
             if (model_name == 'coarse') or (model_name == 'refinement'):
                 masked_image, mask, groundtruth = data
@@ -103,9 +105,17 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
                 scaler.update()
                 ddp_model.zero_grad(set_to_none=True)
 
-        #log
-        average_train_loss = total_train_loss / num_batch
+        if is_main_process():
+            main_total_train_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
+            gather(torch.tensor(total_train_loss), main_total_train_loss)
+
+        else:
+            gather(torch.tensor(total_train_loss))
+
         if is_main_process(): #Only main process to record log
+            print(main_total_train_loss)
+            average_train_loss = torch.mean(torch.tensor(main_total_train_loss)) / num_batch
+
             wandb.log({"train_loss": average_train_loss})
 
             #Main process save per 10%
