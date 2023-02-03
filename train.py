@@ -25,7 +25,7 @@ parser.add_argument('--train_path', type=str,  help='Training image folder')
 parser.add_argument('--val_path', type=str,  help='(Optinal) Validation image folder')
 parser.add_argument('--world_size', type=int, default=1, help='Number of training process (Should be equal to number of GPUs)')
 
-def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load_discriminator, load_inpaint, mask_type,
+def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load_discriminator,load_inpaint, mask_type,
           train_path, val_path, save_model):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
@@ -120,8 +120,8 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
 
                 output = mask*output + (1-mask)*hr_groundtruth #Refinement output
 
-                real_prediction, real_attention = ddp_discriminator(hr_groundtruth, mask)
-                fake_prediction, fake_attention = ddp_discriminator(output, mask)
+                real_prediction = ddp_discriminator(hr_groundtruth, mask)
+                fake_prediction = ddp_discriminator(output, mask)
 
                 discriminator_loss, discriminator_real_loss, discriminator_fake_loss = \
                     discriminator_loss_function(real_prediction, fake_prediction)
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     assert cmd_args.train_path is not None
 
     mp.spawn(train, args = (cmd_args.world_size, cmd_args.batch_size, cmd_args.epochs, cmd_args.learning_rate,
-                            cmd_args.discriminator_lr_scale,cmd_args.load_discriminator, cmd_args.load_inpaint,
+                            cmd_args.discriminator_lr_scale, cmd_args.load_discriminator, cmd_args.load_inpaint,
                             cmd_args.mask_type, cmd_args.train_path, cmd_args.val_path, cmd_args.save_model),
              nprocs = cmd_args.world_size, join=True)
 
