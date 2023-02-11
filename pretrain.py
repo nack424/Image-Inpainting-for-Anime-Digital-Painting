@@ -121,6 +121,8 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
             if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
                 torch.save(ddp_model.module.state_dict(), os.path.join(save_model, model_name + str(epoch + 1) + '.pt'))
 
+    cleanup()
+
 if __name__ == '__main__':
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29500"

@@ -283,6 +283,8 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
             torch.save(ddp_discriminator.module.state_dict(),
                        os.path.join(save_model, 'discriminator_joint' + str(epoch + 1) + '.pt'))
 
+    cleanup()
+
 if __name__ == '__main__':
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29500"
