@@ -14,3 +14,6 @@ def gather(tensor, tensor_list=None, group=None):
         dist.gather(tensor, gather_list=tensor_list, group=group)
     else:
         dist.gather(tensor, dst=0, group=group)
+
+def cleanup():
+    dist.destroy_process_group()
