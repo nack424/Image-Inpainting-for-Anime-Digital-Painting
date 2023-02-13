@@ -1,7 +1,6 @@
 import os
 import torch
 from torch.utils.data import Dataset
-from turbojpeg import TurboJPEG
 from utils.crop import random_crop
 from utils.mask import *
 
@@ -30,12 +29,9 @@ class MaskedDataset(Dataset):
         self.mask_type = mask_type
         self.image_list = []
 
-        jpeg = TurboJPEG()
-
         for image_name in os.listdir(path):
             image_path = os.path.join(path, image_name)
-            in_file = open(image_path, 'rb')
-            original_image = jpeg.decode(in_file.read()).astype('uint8')
+            original_image = cv2.imread(image_path)
 
             self.image_list.append(original_image)
 
@@ -73,12 +69,9 @@ class SuperResolutionDataset(Dataset):
     def __init__(self, path):
         self.image_list = []
 
-        jpeg = TurboJPEG()
-
         for image_name in os.listdir(path):
             image_path = os.path.join(path, image_name)
-            in_file = open(image_path, 'rb')
-            original_image = jpeg.decode(in_file.read()).astype('uint8')
+            original_image = cv2.imread(image_path)
 
             self.image_list.append(original_image)
 
@@ -103,12 +96,9 @@ class JointDataset(Dataset):
         self.mask_type = mask_type
         self.image_list = []
 
-        jpeg = TurboJPEG()
-
         for image_name in os.listdir(path):
             image_path = os.path.join(path, image_name)
-            in_file = open(image_path, 'rb')
-            original_image = jpeg.decode(in_file.read()).astype('uint8')
+            original_image = cv2.imread(image_path)
 
             self.image_list.append(original_image)
 
