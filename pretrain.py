@@ -25,6 +25,8 @@ parser.add_argument('--world_size', type=int, default=1, help='Number of trainin
 def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, train_path, save_model):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
+    torch.backends.cudnn.benchmark = True
+
     vgg19_model = vgg19(weights='IMAGENET1K_V1')
     vgg19_model = vgg19_model.features[:21].to(rank)
 
@@ -38,7 +40,7 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
         train_dataset = MaskedDataset(train_path, 1)
         sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-        train_dataloader = DataLoader(train_dataset, batch_size = batch_size, sampler=sampler)
+        train_dataloader = DataLoader(train_dataset, batch_size = batch_size, sampler=sampler, pin_memory=True)
 
     else:
         model = SuperResolutionNet().to(rank)
@@ -47,7 +49,7 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
         train_dataset = SuperResolutionDataset(train_path)
         sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, pin_memory=True)
 
     if load_model is not None:
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}

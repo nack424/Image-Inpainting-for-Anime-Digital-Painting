@@ -29,6 +29,8 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
           train_path, val_path, save_model):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
+    torch.backends.cudnn.benchmark = True
+
     coarse_model = CoarseNet().to(rank)
     super_resolution_model = SuperResolutionNet().to(rank)
     refinement_model = RefinementNet().to(rank)
@@ -58,12 +60,12 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
 
     train_dataset = JointDataset(train_path, mask_type)
     sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, pin_memory=True)
 
     if val_path is not None:
         val_dataset = JointDataset(val_path, mask_type)
         sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=sampler)
+        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=sampler, pin_memory=True)
 
     coarse_loss_function = Coarse_loss(vgg19_model, vgg_loss_weight=0.01)
     super_resolution_loss_function = L1_loss()
