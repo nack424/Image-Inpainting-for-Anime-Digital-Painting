@@ -58,7 +58,7 @@ class MaskedDataset(Dataset):
         masked_image, mask = mask_image(groundtruth, mask_type=self.mask_type, brush_amount=brush_amount)
 
         masked_image = preprocess(masked_image)
-        mask = torch.permute(torch.tensor(mask, dtype=torch.float32), (2, 0, 1))
+        mask = torch.permute(torch.as_tensor(mask, dtype=torch.float32), (2, 0, 1))
         groundtruth = preprocess(groundtruth)
 
         return masked_image, mask, groundtruth
@@ -127,7 +127,7 @@ class JointDataset(Dataset):
                                         brush_amount=brush_amount)
 
         masked_image = preprocess(masked_image)
-        mask = torch.permute(torch.tensor(mask, dtype=torch.float32), (2, 0, 1))
+        mask = torch.permute(torch.as_tensor(mask, dtype=torch.float32), (2, 0, 1))
         low_resolution_groundtruth = preprocess(low_resolution_groundtruth)
         high_resolution_groundtruth = preprocess(high_resolution_groundtruth)
 
