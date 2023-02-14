@@ -27,7 +27,7 @@ parser.add_argument('--world_size', type=int, default=1, help='Number of trainin
 
 def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load_discriminator,load_inpaint, mask_type,
           train_path, val_path, save_model):
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
     torch.backends.cudnn.benchmark = True
 
@@ -52,20 +52,20 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
     vgg19_model = vgg19(weights='IMAGENET1K_V1')
     vgg19_model = vgg19_model.features[:21].to(rank)
 
-    ddp_coarse = DDP(coarse_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-    ddp_super_resolution = DDP(super_resolution_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-    ddp_refinement = DDP(refinement_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    ddp_coarse = DDP(coarse_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+    ddp_super_resolution = DDP(super_resolution_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+    ddp_refinement = DDP(refinement_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
-    ddp_discriminator = DDP(discriminator_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    ddp_discriminator = DDP(discriminator_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
     train_dataset = JointDataset(train_path, mask_type)
     sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, pin_memory=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
 
     if val_path is not None:
         val_dataset = JointDataset(val_path, mask_type)
         sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=sampler, pin_memory=True)
+        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=sampler)
 
     coarse_loss_function = Coarse_loss(vgg19_model, vgg_loss_weight=0.01)
     super_resolution_loss_function = L1_loss()
@@ -96,8 +96,6 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
         total_train_refinement_other_loss = 0
         total_train_refinement_gan_loss = 0
         total_train_discriminator_loss = 0
-        total_train_discriminator_real_loss = 0
-        total_train_discriminator_fake_loss = 0
 
         total_val_coarse_loss = 0
         total_val_super_resolution_loss = 0
@@ -133,8 +131,7 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                 real_prediction = ddp_discriminator(hr_groundtruth, mask)
                 fake_prediction = ddp_discriminator(output, mask)
 
-                discriminator_loss, discriminator_real_loss, discriminator_fake_loss = \
-                    discriminator_loss_function(real_prediction, fake_prediction)
+                discriminator_loss = discriminator_loss_function(real_prediction, fake_prediction)
                 refinement_loss, refinement_gan_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
 
                 inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
@@ -143,8 +140,6 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                 total_train_super_resolution_loss += super_resolution_loss.item()
                 total_train_refinement_other_loss += refinement_loss.item() - refinement_gan_loss.item()
                 total_train_discriminator_loss += discriminator_loss.item()
-                total_train_discriminator_real_loss += discriminator_real_loss.item()
-                total_train_discriminator_fake_loss += discriminator_fake_loss.item()
                 total_train_refinement_gan_loss += refinement_gan_loss.item()
 
             scaler.scale(discriminator_loss).backward(inputs = list(ddp_discriminator.parameters()), retain_graph=True)
@@ -192,77 +187,65 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                     total_val_refinement_other_loss += refinement_loss.item() - refinement_gan_loss.item()
 
         if is_main_process():
-            main_total_train_coarse_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
-            main_total_train_super_resolution_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
-            main_total_train_refinement_other_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
-            main_total_train_refinement_gan_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
-            main_total_train_discriminator_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
-            main_total_train_discriminator_real_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
-            main_total_train_discriminator_fake_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
+            main_total_train_coarse_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
+            main_total_train_super_resolution_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
+            main_total_train_refinement_other_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
+            main_total_train_refinement_gan_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
+            main_total_train_discriminator_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
 
-            gather(torch.tensor(total_train_coarse_loss), main_total_train_coarse_loss)
-            gather(torch.tensor(total_train_super_resolution_loss), main_total_train_super_resolution_loss)
-            gather(torch.tensor(total_train_refinement_other_loss), main_total_train_refinement_other_loss)
-            gather(torch.tensor(total_train_refinement_gan_loss), main_total_train_refinement_gan_loss)
-            gather(torch.tensor(total_train_discriminator_loss), main_total_train_discriminator_loss)
-            gather(torch.tensor(total_train_discriminator_real_loss), main_total_train_discriminator_real_loss)
-            gather(torch.tensor(total_train_discriminator_fake_loss), main_total_train_discriminator_fake_loss)
+            gather(torch.tensor(total_train_coarse_loss, device='cuda'), main_total_train_coarse_loss)
+            gather(torch.tensor(total_train_super_resolution_loss, device='cuda'), main_total_train_super_resolution_loss)
+            gather(torch.tensor(total_train_refinement_other_loss, device='cuda'), main_total_train_refinement_other_loss)
+            gather(torch.tensor(total_train_refinement_gan_loss, device='cuda'), main_total_train_refinement_gan_loss)
+            gather(torch.tensor(total_train_discriminator_loss, device='cuda'), main_total_train_discriminator_loss)
 
             if val_path is not None:
-                main_total_val_coarse_loss = [torch.tensor(0, dtype=torch.float32) for _ in
+                main_total_val_coarse_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in
                                                             range(world_size)]
-                main_total_val_super_resolution_loss = [torch.tensor(0, dtype=torch.float32) for _ in
+                main_total_val_super_resolution_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in
                                                             range(world_size)]
-                main_total_val_refinement_other_loss = [torch.tensor(0, dtype=torch.float32) for _ in
+                main_total_val_refinement_other_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in
                                                             range(world_size)]
 
-                gather(torch.tensor(total_val_coarse_loss), main_total_val_coarse_loss)
-                gather(torch.tensor(total_val_super_resolution_loss), main_total_val_super_resolution_loss)
-                gather(torch.tensor(total_val_refinement_other_loss), main_total_val_refinement_other_loss)
+                gather(torch.tensor(total_val_coarse_loss, device='cuda'), main_total_val_coarse_loss)
+                gather(torch.tensor(total_val_super_resolution_loss, device='cuda'), main_total_val_super_resolution_loss)
+                gather(torch.tensor(total_val_refinement_other_loss, device='cuda'), main_total_val_refinement_other_loss)
 
         else:
-            gather(torch.tensor(total_train_coarse_loss))
-            gather(torch.tensor(total_train_super_resolution_loss))
-            gather(torch.tensor(total_train_refinement_other_loss))
-            gather(torch.tensor(total_train_refinement_gan_loss))
-            gather(torch.tensor(total_train_discriminator_loss))
-            gather(torch.tensor(total_train_discriminator_real_loss))
-            gather(torch.tensor(total_train_discriminator_fake_loss))
+            gather(torch.tensor(total_train_coarse_loss, device='cuda'))
+            gather(torch.tensor(total_train_super_resolution_loss, device='cuda'))
+            gather(torch.tensor(total_train_refinement_other_loss, device='cuda'))
+            gather(torch.tensor(total_train_refinement_gan_loss, device='cuda'))
+            gather(torch.tensor(total_train_discriminator_loss, device='cuda'))
 
             if val_path is not None:
-                gather(torch.tensor(total_val_coarse_loss))
-                gather(torch.tensor(total_val_super_resolution_loss))
-                gather(torch.tensor(total_val_refinement_other_loss))
+                gather(torch.tensor(total_val_coarse_loss, device='cuda'))
+                gather(torch.tensor(total_val_super_resolution_loss, device='cuda'))
+                gather(torch.tensor(total_val_refinement_other_loss, device='cuda'))
 
         if is_main_process():
-            average_train_coarse_loss = torch.mean(torch.tensor(main_total_train_coarse_loss)) / \
+            average_train_coarse_loss = torch.mean(torch.as_tensor(main_total_train_coarse_loss)) / \
                                         num_batch_train
-            average_train_super_resolution_loss = torch.mean(torch.tensor(main_total_train_super_resolution_loss)) / \
+            average_train_super_resolution_loss = torch.mean(torch.as_tensor(main_total_train_super_resolution_loss)) / \
                                                   num_batch_train
-            average_train_refinement_other_loss = torch.mean(torch.tensor(main_total_train_refinement_other_loss)) / \
+            average_train_refinement_other_loss = torch.mean(torch.as_tensor(main_total_train_refinement_other_loss)) / \
                                                   num_batch_train
-            average_train_refinement_gan_loss = torch.mean(torch.tensor(main_total_train_refinement_gan_loss)) / \
+            average_train_refinement_gan_loss = torch.mean(torch.as_tensor(main_total_train_refinement_gan_loss)) / \
                                                 num_batch_train
-            average_train_discriminator_loss = torch.mean(torch.tensor(main_total_train_discriminator_loss)) / \
+            average_train_discriminator_loss = torch.mean(torch.as_tensor(main_total_train_discriminator_loss)) / \
                                                num_batch_train
-            average_train_discriminator_real_loss = torch.mean(torch.tensor(main_total_train_discriminator_real_loss)) / \
-                                                    num_batch_train
-            average_train_discriminator_fake_loss = torch.mean(torch.tensor(main_total_train_discriminator_fake_loss)) / \
-                                                    num_batch_train
 
             if val_path is not None:
-                average_val_coarse_loss = torch.mean(torch.tensor(main_total_val_coarse_loss)) / num_batch_val
-                average_val_super_resolution_loss = torch.mean(torch.tensor(main_total_val_super_resolution_loss)) / \
+                average_val_coarse_loss = torch.mean(torch.as_tensor(main_total_val_coarse_loss)) / num_batch_val
+                average_val_super_resolution_loss = torch.mean(torch.as_tensor(main_total_val_super_resolution_loss)) / \
                                                     num_batch_val
-                average_val_refinement_other_loss = torch.mean(torch.tensor(main_total_val_refinement_other_loss)) / \
+                average_val_refinement_other_loss = torch.mean(torch.as_tensor(main_total_val_refinement_other_loss)) / \
                                                     num_batch_val
                 wandb.log({"train_coarse_loss": average_train_coarse_loss,
                           "train_SR_loss": average_train_super_resolution_loss,
                            "train_refinement_other_loss": average_train_refinement_other_loss,
                           "train_refinement_gan_loss": average_train_refinement_gan_loss,
                            "train_discriminator_overall_loss": average_train_discriminator_loss,
-                           "train_discriminator_real_loss": average_train_discriminator_real_loss,
-                           "train_discriminator_fake_loss": average_train_discriminator_fake_loss,
                            "val_coarse_loss": average_val_coarse_loss,
                            "val_SR_loss": average_val_super_resolution_loss,
                            "val_refinement_other_loss": average_val_refinement_other_loss
@@ -272,9 +255,7 @@ def train(rank, world_size, batch_size, epochs, lr, discriminator_lr_scale, load
                           "train_SR_loss": average_train_super_resolution_loss,
                            "train_refinement_other_loss": average_train_refinement_other_loss,
                           "train_refinement_gan_loss": average_train_refinement_gan_loss,
-                           "train_discriminator_overall_loss": average_train_discriminator_loss,
-                           "train_discriminator_real_loss": average_train_discriminator_real_loss,
-                           "train_discriminator_fake_loss": average_train_discriminator_fake_loss})
+                           "train_discriminator_overall_loss": average_train_discriminator_loss})
 
         if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
             torch.save(ddp_coarse.module.state_dict(), os.path.join(save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))

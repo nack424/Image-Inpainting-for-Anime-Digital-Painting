@@ -23,7 +23,7 @@ parser.add_argument('--train_path', type=str,  help='Training image folder')
 parser.add_argument('--world_size', type=int, default=1, help='Number of training process (Should be equal to number of GPUs)')
 
 def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, train_path, save_model):
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
     torch.backends.cudnn.benchmark = True
 
@@ -40,7 +40,7 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
         train_dataset = MaskedDataset(train_path, 1)
         sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-        train_dataloader = DataLoader(train_dataset, batch_size = batch_size, sampler=sampler, pin_memory=True)
+        train_dataloader = DataLoader(train_dataset, batch_size = batch_size, sampler=sampler)
 
     else:
         model = SuperResolutionNet().to(rank)
@@ -49,14 +49,14 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
 
         train_dataset = SuperResolutionDataset(train_path)
         sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, pin_memory=True)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
 
     if load_model is not None:
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
         model.load_state_dict(torch.load(glob.glob(os.path.join(load_model, model_name + '*'))[0],
                                              map_location=map_location))
 
-    ddp_model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    ddp_model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr = lr)
 
@@ -108,14 +108,14 @@ def pretrain(rank, world_size, batch_size, epochs, lr, load_model, model_name, t
                 ddp_model.zero_grad(set_to_none=True)
 
         if is_main_process():
-            main_total_train_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
-            gather(torch.tensor(total_train_loss), main_total_train_loss)
+            main_total_train_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
+            gather(torch.tensor(total_train_loss, device='cuda'), main_total_train_loss)
 
         else:
-            gather(torch.tensor(total_train_loss))
+            gather(torch.tensor(total_train_loss, device='cuda'))
 
         if is_main_process(): #Only main process to record log
-            average_train_loss = torch.mean(torch.tensor(main_total_train_loss)) / num_batch
+            average_train_loss = torch.mean(torch.as_tensor(main_total_train_loss)) / num_batch
 
             wandb.log({"train_loss": average_train_loss})
 
