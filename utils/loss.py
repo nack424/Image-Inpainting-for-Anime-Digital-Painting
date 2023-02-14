@@ -71,10 +71,8 @@ class Gradient_loss:
 
 class Discriminator_loss:
     def __call__(self, real_prediction, fake_prediction):
-        real_loss = torch.mean(F.relu(1 - real_prediction))
-        fake_loss = torch.mean(F.relu(1 + fake_prediction))
-        loss = real_loss + fake_loss
-        return loss, real_loss, fake_loss
+        loss = torch.mean(F.relu(1 - real_prediction)) + torch.mean(F.relu(1 + fake_prediction))
+        return loss
 
 class Generator_loss:
     def __call__(self, fake_prediction):
