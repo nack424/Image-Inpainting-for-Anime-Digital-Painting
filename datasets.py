@@ -84,8 +84,8 @@ class SuperResolutionDataset(Dataset):
         min_shape = min(original_image.shape[0], original_image.shape[1]) #min height or width
 
         groundtruth = random_crop(original_image, round(min_shape), round(min_shape)) #Subject to change
-        groundtruth = cv2.resize(groundtruth, (128, 128))
-        resize_image = cv2.resize(groundtruth, (64, 64))
+        groundtruth = cv2.resize(groundtruth, (512, 512))
+        resize_image = cv2.resize(groundtruth, (256, 256))
 
         groundtruth, resize_image = preprocess(groundtruth), preprocess(resize_image)
 
