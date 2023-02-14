@@ -112,7 +112,7 @@ class JointDataset(Dataset):
 
         high_resolution_groundtruth = random_crop(original_image, round(min_shape), round(min_shape)) #Subject to change
         high_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (512, 512))
-        low_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (256, 256), interpolation=cv2.INTER_CUBIC)
+        low_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (256, 256))
 
         if self.mask_type == 1:
             brush_amount = round(random.uniform(2, 8))  # Subject to be change
