@@ -26,7 +26,7 @@ parser.add_argument('--world_size', type=int, default=1, help='Number of trainin
 
 def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpaint, mask_type,
           train_path, val_path, save_model):
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
     torch.backends.cudnn.benchmark = True
 
@@ -51,9 +51,9 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
     vgg19_model = vgg19(weights='IMAGENET1K_V1')
     vgg19_model = vgg19_model.features[:21].to(rank)
 
-    ddp_coarse = DDP(coarse_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+    ddp_coarse = DDP(coarse_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
     ddp_super_resolution = DDP(super_resolution_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
-    ddp_refinement = DDP(refinement_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+    ddp_refinement = DDP(refinement_model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
 
     ddp_discriminator = DDP(discriminator_model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
@@ -184,41 +184,41 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
                     total_val_refinement_other_loss += refinement_loss.item() - refinement_gan_loss.item()
 
         if is_main_process():
-            main_total_train_coarse_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
-            main_total_train_super_resolution_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
-            main_total_train_refinement_other_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
-            main_total_train_refinement_gan_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
-            main_total_train_discriminator_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in range(world_size)]
+            main_total_train_coarse_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
+            main_total_train_super_resolution_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
+            main_total_train_refinement_other_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
+            main_total_train_refinement_gan_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
+            main_total_train_discriminator_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
 
-            gather(torch.tensor(total_train_coarse_loss, device='cuda'), main_total_train_coarse_loss)
-            gather(torch.tensor(total_train_super_resolution_loss, device='cuda'), main_total_train_super_resolution_loss)
-            gather(torch.tensor(total_train_refinement_other_loss, device='cuda'), main_total_train_refinement_other_loss)
-            gather(torch.tensor(total_train_refinement_gan_loss, device='cuda'), main_total_train_refinement_gan_loss)
-            gather(torch.tensor(total_train_discriminator_loss, device='cuda'), main_total_train_discriminator_loss)
+            gather(torch.tensor(total_train_coarse_loss), main_total_train_coarse_loss)
+            gather(torch.tensor(total_train_super_resolution_loss), main_total_train_super_resolution_loss)
+            gather(torch.tensor(total_train_refinement_other_loss), main_total_train_refinement_other_loss)
+            gather(torch.tensor(total_train_refinement_gan_loss), main_total_train_refinement_gan_loss)
+            gather(torch.tensor(total_train_discriminator_loss), main_total_train_discriminator_loss)
 
             if val_path is not None:
-                main_total_val_coarse_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in
+                main_total_val_coarse_loss = [torch.tensor(0, dtype=torch.float32) for _ in
                                                             range(world_size)]
-                main_total_val_super_resolution_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in
+                main_total_val_super_resolution_loss = [torch.tensor(0, dtype=torch.float32) for _ in
                                                             range(world_size)]
-                main_total_val_refinement_other_loss = [torch.tensor(0, dtype=torch.float32, device='cuda') for _ in
+                main_total_val_refinement_other_loss = [torch.tensor(0, dtype=torch.float32) for _ in
                                                             range(world_size)]
 
-                gather(torch.tensor(total_val_coarse_loss, device='cuda'), main_total_val_coarse_loss)
-                gather(torch.tensor(total_val_super_resolution_loss, device='cuda'), main_total_val_super_resolution_loss)
-                gather(torch.tensor(total_val_refinement_other_loss, device='cuda'), main_total_val_refinement_other_loss)
+                gather(torch.tensor(total_val_coarse_loss), main_total_val_coarse_loss)
+                gather(torch.tensor(total_val_super_resolution_loss), main_total_val_super_resolution_loss)
+                gather(torch.tensor(total_val_refinement_other_loss), main_total_val_refinement_other_loss)
 
         else:
-            gather(torch.tensor(total_train_coarse_loss, device='cuda'))
-            gather(torch.tensor(total_train_super_resolution_loss, device='cuda'))
-            gather(torch.tensor(total_train_refinement_other_loss, device='cuda'))
-            gather(torch.tensor(total_train_refinement_gan_loss, device='cuda'))
-            gather(torch.tensor(total_train_discriminator_loss, device='cuda'))
+            gather(torch.tensor(total_train_coarse_loss))
+            gather(torch.tensor(total_train_super_resolution_loss))
+            gather(torch.tensor(total_train_refinement_other_loss))
+            gather(torch.tensor(total_train_refinement_gan_loss))
+            gather(torch.tensor(total_train_discriminator_loss))
 
             if val_path is not None:
-                gather(torch.tensor(total_val_coarse_loss, device='cuda'))
-                gather(torch.tensor(total_val_super_resolution_loss, device='cuda'))
-                gather(torch.tensor(total_val_refinement_other_loss, device='cuda'))
+                gather(torch.tensor(total_val_coarse_loss))
+                gather(torch.tensor(total_val_super_resolution_loss))
+                gather(torch.tensor(total_val_refinement_other_loss))
 
         if is_main_process():
             average_train_coarse_loss = torch.mean(torch.as_tensor(main_total_train_coarse_loss)) / \
