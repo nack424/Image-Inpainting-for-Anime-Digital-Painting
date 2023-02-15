@@ -41,9 +41,9 @@ class MaskedDataset(Dataset):
     def __getitem__(self, index):
         original_image = self.image_list[index]
 
-        short_side = min(original_image.shape[0], original_image.shape[1]) #min height or width
+        short_length = min(original_image.shape[0], original_image.shape[1]) #min height or width
 
-        groundtruth = random_crop(original_image, round(short_side), round(short_side)) #Subject to change
+        groundtruth = random_crop(original_image, round(short_length), round(short_length)) #Subject to change
         groundtruth = cv2.resize(groundtruth, (256, 256))
 
         if self.mask_type == 1:
@@ -81,9 +81,9 @@ class SuperResolutionDataset(Dataset):
     def __getitem__(self, index):
         original_image = self.image_list[index]
 
-        short_side = min(original_image.shape[0], original_image.shape[1]) #min height or width
+        short_length = min(original_image.shape[0], original_image.shape[1]) #min height or width
 
-        groundtruth = random_crop(original_image, round(short_side), round(short_side)) #Subject to change
+        groundtruth = random_crop(original_image, round(short_length), round(short_length)) #Subject to change
         groundtruth = cv2.resize(groundtruth, (512, 512))
         resize_image = cv2.resize(groundtruth, (256, 256))
 
@@ -108,9 +108,9 @@ class JointDataset(Dataset):
     def __getitem__(self, index):
         original_image = self.image_list[index]
 
-        short_side = min(original_image.shape[0], original_image.shape[1]) #min height or width
+        short_length = min(original_image.shape[0], original_image.shape[1]) #min height or width
 
-        high_resolution_groundtruth = random_crop(original_image, round(short_side), round(short_side)) #Subject to change
+        high_resolution_groundtruth = random_crop(original_image, round(short_length), round(short_length)) #Subject to change
         high_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (512, 512))
         low_resolution_groundtruth = cv2.resize(high_resolution_groundtruth, (256, 256))
 
