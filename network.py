@@ -7,16 +7,20 @@ class GateConv2d(nn.Module):
         #Important! conv_out_channel is output channel of convolution layer not output of entire gate convolution
         super(GateConv2d, self).__init__()
         self.conv = nn.Conv2d(conv_in_channels, conv_out_channels, kernel_size, stride, padding, dilation)
-        self.BatchNorm2d = nn.BatchNorm2d(conv_out_channels // 2)
-        self.BatchNorm2d_3channels = nn.BatchNorm2d(3)
         self.ELU = nn.ELU()
         self.Sigmoid = nn.Sigmoid()
+
+        if conv_out_channels == 3:
+            self.BatchNorm2d = nn.BatchNorm2d(3)
+
+        else:
+            self.BatchNorm2d = nn.BatchNorm2d(conv_out_channels // 2)
 
     def forward(self, x):
         x = self.conv(x)
 
         if x.shape[1] == 3:
-            output = self.BatchNorm2d_3channels(x)
+            output = self.BatchNorm2d(x)
             return output
 
         feature, gating = x[:, :x.shape[1] // 2, :, :], x[:, x.shape[1] // 2:, :, :]  # split channels into 2
