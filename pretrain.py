@@ -12,7 +12,7 @@ from utils.distributed import *
 from utils.loss import *
 import wandb
 
-parser = argparse.ArgumentParser(description='My training script.')
+parser = argparse.ArgumentParser(description='Pretrain script.')
 parser.add_argument('--batch_size', type=int, default=8, help='Amount of data that pass simultaneously to model')
 parser.add_argument('--epochs', type=int, default=10, help='Number of epochs to train')
 parser.add_argument('--learning_rate', type=float, default=1e-5, help='Control amount of weight change during optimization')
@@ -130,8 +130,14 @@ if __name__ == '__main__':
     os.environ["MASTER_PORT"] = "29500"
 
     cmd_args = parser.parse_args()
-    assert cmd_args.model in ['coarse', 'super_resolution', 'refinement']
-    assert cmd_args.train_path is not None
+    if cmd_args.model not in ['coarse', 'super_resolution', 'refinement']:
+        if cmd_args.model is None:
+            raise Exception("Please specific model to train")
+        else:
+            raise Exception("Model is not one of these type: coarse, super_resolution, refinement")
+
+    if cmd_args.train_path is None:
+        raise Exception("Please specific training folder")
 
     mp.spawn(pretrain, args = (cmd_args.world_size, cmd_args.batch_size, cmd_args.epochs, cmd_args.learning_rate,
                                cmd_args.load_model, cmd_args.model, cmd_args.train_path, cmd_args.save_model),
