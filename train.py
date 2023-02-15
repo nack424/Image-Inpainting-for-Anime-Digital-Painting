@@ -102,11 +102,6 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
         if val_path is not None:
             num_batch_val = len(val_dataloader)
 
-        ddp_coarse.train()
-        ddp_super_resolution.train()
-        ddp_refinement.train()
-        ddp_discriminator.train()
-
         for batch, data in enumerate(train_dataloader):
             masked_image, mask, lr_groundtruth, hr_groundtruth = data
             masked_image, mask, lr_groundtruth, hr_groundtruth = masked_image.to(rank), mask.to(rank), \
@@ -152,11 +147,6 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
         if val_path is not None:
             val_dataloader.sampler.set_epoch(epoch)
 
-            ddp_coarse.eval()
-            ddp_super_resolution.eval()
-            ddp_refinement.eval()
-            ddp_discriminator.eval()
-
             for batch, data in enumerate(val_dataloader):
                 masked_image, mask, lr_groundtruth, hr_groundtruth = data
                 masked_image, mask, lr_groundtruth, hr_groundtruth = masked_image.to(rank), mask.to(rank), \
@@ -173,7 +163,7 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
                     mask = F.interpolate(mask, size=(512, 512), mode='nearest')
                     output = ddp_refinement(output, mask)
 
-                    output = mask * output + (1 - mask) * hr_groundtruth  # Refinement output
+                    output = mask*output + (1-mask)*hr_groundtruth  # Refinement output
 
                     fake_prediction = ddp_discriminator(output, mask)
 
@@ -267,7 +257,7 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
 
 if __name__ == '__main__':
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29500"
+    os.environ["MASTER_PORT"] = "29501"
 
     cmd_args = parser.parse_args()
 
