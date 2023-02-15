@@ -21,10 +21,11 @@ parser.add_argument('--load_inpaint', type=str, help='(Optinal) Folder contain 3
 parser.add_argument('--mask_type', type=int, default=1, help='Mask type: 1 for normal mask, 2 for large mask')
 parser.add_argument('--save_model', type=str,  help='(Optinal) Folder to save all models')
 parser.add_argument('--train_path', type=str,  help='Training image folder')
+parser.add_argument('--val_path', type=str,  help='(Optinal) Validation image folder')
 parser.add_argument('--world_size', type=int, default=1, help='Number of training process (Should be equal to number of GPUs)')
 
 def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpaint, mask_type,
-          train_path, save_model):
+          train_path, val_path, save_model):
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
     torch.backends.cudnn.benchmark = True
@@ -60,6 +61,11 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
     sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler)
 
+    if val_path is not None:
+        val_dataset = JointDataset(val_path, mask_type)
+        sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
+        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=sampler)
+
     coarse_loss_function = Coarse_loss(vgg19_model, vgg_loss_weight=0.01)
     super_resolution_loss_function = L1_loss()
     refinement_loss_function = Joint_refinement_loss(vgg19_model, vgg_loss_weight = 1e-5, gan_loss_weight = 0.5,
@@ -88,7 +94,18 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
         total_train_refinement_gan_loss = 0
         total_train_discriminator_loss = 0
 
+        total_val_coarse_loss = 0
+        total_val_super_resolution_loss = 0
+        total_val_refinement_other_loss = 0
+
         num_batch_train = len(train_dataloader)
+        if val_path is not None:
+            num_batch_val = len(val_dataloader)
+
+        ddp_coarse.train()
+        ddp_super_resolution.train()
+        ddp_refinement.train()
+        ddp_discriminator.train()
 
         for batch, data in enumerate(train_dataloader):
             masked_image, mask, lr_groundtruth, hr_groundtruth = data
@@ -113,7 +130,6 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
 
                 discriminator_loss = discriminator_loss_function(real_prediction, fake_prediction)
                 refinement_loss, refinement_gan_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
-
                 inpaint_loss = coarse_loss + super_resolution_loss + refinement_loss
 
                 total_train_coarse_loss += coarse_loss.item()
@@ -132,6 +148,40 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
 
             scaler.update()
 
+        if val_path is not None:
+            val_dataloader.sampler.set_epoch(epoch)
+
+            ddp_coarse.eval()
+            ddp_super_resolution.eval()
+            ddp_refinement.eval()
+            ddp_discriminator.eval()
+
+            for batch, data in enumerate(val_dataloader):
+                masked_image, mask, lr_groundtruth, hr_groundtruth = data
+                masked_image, mask, lr_groundtruth, hr_groundtruth = masked_image.to(rank), mask.to(rank), \
+                    lr_groundtruth.to(rank), hr_groundtruth.to(rank)
+
+                with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=True):
+                    output = ddp_coarse(masked_image, mask)
+                    output = mask * output + (1 - mask) * masked_image  # Coarse output
+                    coarse_loss = coarse_loss_function(output, lr_groundtruth)
+
+                    output = ddp_super_resolution(output)  # Super resolution output
+                    super_resolution_loss = super_resolution_loss_function(output, hr_groundtruth)
+
+                    mask = F.interpolate(mask, size=(512, 512), mode='nearest')
+                    output = ddp_refinement(output, mask)
+
+                    output = mask*output + (1-mask)*hr_groundtruth  # Refinement output
+
+                    fake_prediction = ddp_discriminator(output, mask)
+
+                    refinement_loss, refinement_gan_loss = refinement_loss_function(output, hr_groundtruth, fake_prediction)
+
+                    total_val_coarse_loss += coarse_loss.item()
+                    total_val_super_resolution_loss += super_resolution_loss.item()
+                    total_val_refinement_other_loss += refinement_loss.item() - refinement_gan_loss.item()
+
         if is_main_process():
             main_total_train_coarse_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
             main_total_train_super_resolution_loss = [torch.tensor(0, dtype=torch.float32) for _ in range(world_size)]
@@ -145,12 +195,29 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
             gather(torch.tensor(total_train_refinement_gan_loss), main_total_train_refinement_gan_loss)
             gather(torch.tensor(total_train_discriminator_loss), main_total_train_discriminator_loss)
 
+            if val_path is not None:
+                main_total_val_coarse_loss = [torch.tensor(0, dtype=torch.float32) for _ in
+                                                            range(world_size)]
+                main_total_val_super_resolution_loss = [torch.tensor(0, dtype=torch.float32) for _ in
+                                                            range(world_size)]
+                main_total_val_refinement_other_loss = [torch.tensor(0, dtype=torch.float32) for _ in
+                                                            range(world_size)]
+
+                gather(torch.tensor(total_val_coarse_loss), main_total_val_coarse_loss)
+                gather(torch.tensor(total_val_super_resolution_loss), main_total_val_super_resolution_loss)
+                gather(torch.tensor(total_val_refinement_other_loss), main_total_val_refinement_other_loss)
+
         else:
             gather(torch.tensor(total_train_coarse_loss))
             gather(torch.tensor(total_train_super_resolution_loss))
             gather(torch.tensor(total_train_refinement_other_loss))
             gather(torch.tensor(total_train_refinement_gan_loss))
             gather(torch.tensor(total_train_discriminator_loss))
+
+            if val_path is not None:
+                gather(torch.tensor(total_val_coarse_loss))
+                gather(torch.tensor(total_val_super_resolution_loss))
+                gather(torch.tensor(total_val_refinement_other_loss))
 
         if is_main_process():
             average_train_coarse_loss = torch.mean(torch.as_tensor(main_total_train_coarse_loss)) / \
@@ -164,11 +231,27 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
             average_train_discriminator_loss = torch.mean(torch.as_tensor(main_total_train_discriminator_loss)) / \
                                                num_batch_train
 
-            wandb.log({"train_coarse_loss": average_train_coarse_loss,
-                      "train_SR_loss": average_train_super_resolution_loss,
-                       "train_refinement_other_loss": average_train_refinement_other_loss,
-                      "train_refinement_gan_loss": average_train_refinement_gan_loss,
-                       "train_discriminator_overall_loss": average_train_discriminator_loss})
+            if val_path is not None:
+                average_val_coarse_loss = torch.mean(torch.as_tensor(main_total_val_coarse_loss)) / num_batch_val
+                average_val_super_resolution_loss = torch.mean(torch.as_tensor(main_total_val_super_resolution_loss)) / \
+                                                    num_batch_val
+                average_val_refinement_other_loss = torch.mean(torch.as_tensor(main_total_val_refinement_other_loss)) / \
+                                                    num_batch_val
+                wandb.log({"train_coarse_loss": average_train_coarse_loss,
+                          "train_SR_loss": average_train_super_resolution_loss,
+                           "train_refinement_other_loss": average_train_refinement_other_loss,
+                          "train_refinement_gan_loss": average_train_refinement_gan_loss,
+                           "train_discriminator_overall_loss": average_train_discriminator_loss,
+                           "val_coarse_loss": average_val_coarse_loss,
+                           "val_SR_loss": average_val_super_resolution_loss,
+                           "val_refinement_other_loss": average_val_refinement_other_loss
+                           })
+            else:
+                wandb.log({"train_coarse_loss": average_train_coarse_loss,
+                          "train_SR_loss": average_train_super_resolution_loss,
+                           "train_refinement_other_loss": average_train_refinement_other_loss,
+                          "train_refinement_gan_loss": average_train_refinement_gan_loss,
+                           "train_discriminator_overall_loss": average_train_discriminator_loss})
 
         if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
             torch.save(ddp_coarse.module.state_dict(), os.path.join(save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))
@@ -192,5 +275,5 @@ if __name__ == '__main__':
 
     mp.spawn(train, args = (cmd_args.world_size, cmd_args.batch_size, cmd_args.epochs, cmd_args.learning_rate,
                             cmd_args.load_discriminator, cmd_args.load_inpaint, cmd_args.mask_type, cmd_args.train_path,
-                            cmd_args.save_model),
+                            cmd_args.val_path, cmd_args.save_model),
              nprocs = cmd_args.world_size, join=True)
