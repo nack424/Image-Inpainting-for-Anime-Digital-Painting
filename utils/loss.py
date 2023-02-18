@@ -38,34 +38,36 @@ class Coarse_loss:
 
 
 class Gradient_loss:
-    def __init__(self):
-        self.horizontal_filter = torch.tensor([
-            [-1, 1]], dtype=torch.float32).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
-            0)
-
-        self.vertical_filter = torch.tensor([
-            [-1],
-            [1]], dtype=torch.float32).unsqueeze(0).repeat(3, 1, 1).unsqueeze(
-            0)
-
-        self.horizontal_padder = nn.ZeroPad2d((0, 1, 0, 0)) #For same padding
-        self.vertical_padder = nn.ZeroPad2d((0, 0, 0, 1))
-
     def __call__(self, predict, groundtruth):
         if predict.is_cuda:
             device = predict.device
         else:
             device = 'cpu'
 
-        self.horizontal_filter, self.vertical_filter = self.horizontal_filter.to(device), self.vertical_filter.to(device)
-        self.horizontal_padder, self.vertical_padder = self.horizontal_padder.to(device), self.vertical_padder.to(device)
+        vertical_first = torch.zeros((predict.shape[0], predict.shape[1], predict.shape[2] + 1, predict.shape[3])).to(
+            device)
+        vertical_second = torch.zeros((predict.shape[0], predict.shape[1], predict.shape[2] + 1, predict.shape[3])).to(
+            device)
+        horizontal_first = torch.zeros((predict.shape[0], predict.shape[1], predict.shape[2], predict.shape[3] + 1)).to(
+            device)
+        horizontal_second = torch.zeros(
+            (predict.shape[0], predict.shape[1], predict.shape[2], predict.shape[3] + 1)).to(device)
 
         different = predict - groundtruth
 
-        horizontal_grad = F.conv2d(self.horizontal_padder(different), self.horizontal_filter)
-        vertical_grad = F.conv2d(self.vertical_padder(different), self.vertical_filter)
+        vertical_first[:, :, :predict.shape[2], :] = different
+        vertical_second[:, :, 1:predict.shape[2] + 1, :] = different
 
-        output = torch.mean(torch.square(horizontal_grad) + torch.square(vertical_grad))/2
+        horizontal_first[:, :, :, :predict.shape[3]] = different
+        horizontal_second[:, :, :, 1:predict.shape[3] + 1] = different
+
+        vertical_output = (vertical_first - vertical_second)[:, :, 1:predict.shape[2] + 1, :]
+        vertical_output[:, :, -1, :] = torch.zeros(vertical_output[:, :, -1, :].shape)
+
+        horizontal_output = (horizontal_first - horizontal_second)[:, :, :, 1:predict.shape[3] + 1]
+        horizontal_output[:, :, :, -1] = torch.zeros(horizontal_output[:, :, :, -1].shape)
+
+        output = torch.mean(torch.square(vertical_output) + torch.square(horizontal_output)) / 2
         return output
 
 
