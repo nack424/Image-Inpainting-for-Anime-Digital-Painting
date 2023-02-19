@@ -253,14 +253,14 @@ def train(rank, world_size, batch_size, epochs, lr, load_discriminator,load_inpa
                           "train_refinement_gan_loss": average_train_refinement_gan_loss,
                            "train_discriminator_overall_loss": average_train_discriminator_loss})
 
-        if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
-            torch.save(ddp_coarse.module.state_dict(), os.path.join(save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))
-            torch.save(ddp_super_resolution.module.state_dict(),
-                       os.path.join(save_model, 'super_resolution_joint' + str(epoch + 1) + '.pt'))
-            torch.save(ddp_refinement.module.state_dict(),
-                       os.path.join(save_model, 'refinement_joint' + str(epoch + 1) + '.pt'))
-            torch.save(ddp_discriminator.module.state_dict(),
-                       os.path.join(save_model, 'discriminator_joint' + str(epoch + 1) + '.pt'))
+            if save_model is not None and ((100 * (epoch + 1)) / epochs) % 10 == 0:
+                torch.save(ddp_coarse.module.state_dict(), os.path.join(save_model, 'coarse_joint' + str(epoch + 1) + '.pt'))
+                torch.save(ddp_super_resolution.module.state_dict(),
+                           os.path.join(save_model, 'super_resolution_joint' + str(epoch + 1) + '.pt'))
+                torch.save(ddp_refinement.module.state_dict(),
+                           os.path.join(save_model, 'refinement_joint' + str(epoch + 1) + '.pt'))
+                torch.save(ddp_discriminator.module.state_dict(),
+                           os.path.join(save_model, 'discriminator_joint' + str(epoch + 1) + '.pt'))
 
     cleanup()
 
