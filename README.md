@@ -16,7 +16,7 @@ This project is coded to train with Cuda, so Cuda GPU and [CUDA Toolkit](https:/
 
 * Python >= 3.9
 * Pytorch >= 1.13.1 with Cuda support
-* torchvision >= 0.14.1
+* torchvision >= 0.14.1 with Cuda support
 * wandb >= 0.13.7
 
 For Anaconda user, use these commands to install Python Environments
