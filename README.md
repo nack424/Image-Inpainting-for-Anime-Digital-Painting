@@ -4,7 +4,7 @@ This project is free time project inspire by anime related project and DeepCream
 
 ## Disclaimer
 
-Author try to trained this model on cloud GPU rental(Vast.ai) with 4 Nvidia RTX A5000 GPUs. However, cost of training this model is very high due to 4.5 million parameters, require a lot of images (10k-100k images) to train and require a lot of training step (100k+ steps). Author decided to abandon this project in training step and afterward. If anyone like to use this model, please use at your own risk. You can also train this model with regular image other than anime image.
+Author try to trained this model on cloud GPU rental (Vast.ai) with 4 Nvidia RTX A5000 GPUs. However, cost of training this model is very high due to 4.5 million parameters, require a lot of images (10k-100k images) to train and require a lot of training step (100k+ steps). Author decided to abandon this project in training step and afterward. If anyone like to use this model, please use at your own risk. You can also train this model with regular image other than anime image.
 
 ## Requirements
 
@@ -29,4 +29,19 @@ If you use Anaconda, use these commands to install Python Environments
 ```
 
 ### WandB set up
-WandB is used for monitoring loss during training. 
+WandB is used for monitoring loss during training. Sign up at [WandB](https://wandb.ai/site) and receive [API key](https://wandb.ai/authorize). In command line type
+
+```
+> wandb login
+```
+
+and paste received API key.
+
+If you are using python notebook, you also can use this code
+
+```
+> import wandb
+> wandb.login(key='YOU API KEY HERE')
+```
+
+## Training
