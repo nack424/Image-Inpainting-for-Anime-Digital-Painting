@@ -47,8 +47,69 @@ If you are using python notebook, you also can use this code
 
 ## Training
 
-This model consist of 3 networks namely Coarse Network, Super Resolution Network and Refinement Network. First, each network will be pre-trained individualy. After that, all networks will be jointly trained.
+This model consist of 3 networks namely Coarse Network, Super Resolution Network and Refinement Network. First, each network will be pre-trained individualy. After that, all networks will be jointly trained with small mask. Lastly, all networks will be jointly trained with larger mask.
 
 ### Pre-train
 
+Pre-train commmand line usage example:
+
+```
+> python pretrain.py --model='coarse' --train_path='./trainset' --save_model='./save_model'
+```
+
+Pre-train command line full usage:
+
+```
+> python pretrain.py --batch_size=int --epochs=int --learning_rate=float [--load_model=str]
+                     --model=str [--save_model=str] --train_path=str --world_size=int
+
+Require arguments:
+  --batch_size          Amount of images that pass simultaneously to model (default:8)
+  --epochs              Amount of training steps (default:10)
+  --learning_rate       Control weights change during optimization (default:1e-5)
+  --model               Model to train specific one of these names: 'coarse', 'super_resolution' or 'refinement'
+  --train_path          Folder contain images for training (image size must be 512x512 pixels or higher)
+  --world_size          Number of GPUs to do multi-GPUs training. Ignore this argument if use single GPU (default:1)
+
+Optional arguments:
+  --load_model          Folder contain saved model (Model must match --model name and folder should contain only one model)
+  --save_model          Folder to save model
+```
+
+You can monitor pre-train loss in WandB's project.
+
+### Jointly train
+
+Jointly train commmand line usage example:
+
+```
+> python train.py --mask_type=1 --train_path='./trainset' --save_model='./save_model'
+```
+
+Jointly train command line full usage:
+
+```
+> python train.py --batch_size=int --epochs=int --learning_rate=float [--load_discriminator=str] [--load_inpaint=str]
+                  --mask_type=int [--save_model=str] --train_path=str [--val_path=str] --world_size=int
+
+Require arguments:
+  --batch_size          Amount of images that pass simultaneously to model (default:1)
+  --epochs              Amount of training steps (default:10)
+  --learning_rate       Control weights change during optimization (default:1e-5)
+  --mask_type           Specific one of these numbers: 1 for small mask and 2 for larger mask (default:1)
+  --train_path          Folder contain images for training (Image size must be 512x512 pixels or higher)
+  --world_size          Number of GPUs to do multi-GPUs training. Ignore this argument if use single GPU (default:1)
+
+Optional arguments:
+  --load_discriminator  Folder contain discriminator model (Folder should contain only one discriminator model)
+  --load_inpaint        Folder contain coarse model, super_resulution model and refinement model (Folder should contain one file for each model)
+  --save_model          Folder to save model
+  --val_path=str        Folder contain images for validation (Image size must be 512x512 pixels or higher)
+```
+
+In jointly training, WandB will show 4 losses namely coarse_loss, super_resolution_loss, refinement_loss and discriminator_loss.
+
+Discriminator loss is expected to be around 2.
+
+## Testing
 
