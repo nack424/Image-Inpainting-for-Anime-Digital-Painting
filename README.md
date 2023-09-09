@@ -19,7 +19,7 @@ This project is coded to train with Cuda, so Cuda GPU and [CUDA Toolkit](https:/
 * torchvision >= 0.14.1
 * wandb >= 0.13.7
 
-If you use Anaconda, use these commands to install Python Environments
+For Anaconda user, use these commands to install Python Environments
 
 ```
 > conda create -n anime-inpainting
