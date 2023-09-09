@@ -1,6 +1,6 @@
 # Image Inpainting for Anime Digital Painting (Underdevelopment)
 
-This project is free time project inspire by anime related project and DeepCreampy. Model is pytorch implementation of [zoom-to-inpaint](https://github.com/google/zoom-to-inpaint).
+This project is free time project inspire by anime related project and DeepCreampy. Model is Pytorch implementation of [zoom-to-inpaint](https://github.com/google/zoom-to-inpaint).
 
 ## Disclaimer
 
@@ -14,3 +14,19 @@ This project is coded to train with Cuda, so Cuda GPU and [CUDA Toolkit](https:/
 
 ### Python Environments
 
+* Python >= 3.9
+* Pytorch >= 1.13.1 with Cuda support
+* torchvision >= 0.14.1
+* wandb >= 0.13.7
+
+If you use Anaconda, use these commands to install Python Environments
+
+```
+> conda create -n anime-inpainting
+> conda activate anime-inpainting
+> conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+> conda install -c conda-forge wandb
+```
+
+### WandB set up
+WandB is used for monitoring loss during training. 
