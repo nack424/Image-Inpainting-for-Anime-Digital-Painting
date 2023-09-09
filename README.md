@@ -72,7 +72,7 @@ Require arguments:
   --world_size          Number of GPUs to do multi-GPUs training. Ignore this argument if use single GPU (default:1)
 
 Optional arguments:
-  --load_model          Folder contain saved model (Model must match --model name and folder should contain only one model)
+  --load_model          Folder contain saved model (Model must match --model name and folder should contain only one model file)
   --save_model          Folder to save model
 ```
 
@@ -101,7 +101,7 @@ Require arguments:
   --world_size          Number of GPUs to do multi-GPUs training. Ignore this argument if use single GPU (default:1)
 
 Optional arguments:
-  --load_discriminator  Folder contain discriminator model (Folder should contain only one discriminator model)
+  --load_discriminator  Folder contain discriminator model (Folder should contain only one discriminator model file)
   --load_inpaint        Folder contain coarse model, super_resulution model and refinement model (Folder should contain one file for each model)
   --save_model          Folder to save model
   --val_path=str        Folder contain images for validation (Image size must be 512x512 pixels or higher)
@@ -109,7 +109,26 @@ Optional arguments:
 
 In jointly training, WandB will show 4 losses namely coarse_loss, super_resolution_loss, refinement_loss and discriminator_loss.
 
-Discriminator loss is expected to be around 2.
+Discriminator loss is expected to converge to 2.
 
 ## Testing
+
+Test commmand line usage example:
+
+```
+> python test.py --image_path='./testset' --load_model='./save_model' --output_path='./result' --model='inpaint'
+```
+
+Test command line full usage:
+
+```
+> python test.py --image_path=str --load_model=str --output_path=str --model=str
+
+Require arguments:
+  --image_path          Folder contain image for testing (Image size must be 512x512 pixels or higher)
+  --load_model          Folder contain saved model (Folder should contain only one model file or if test all model combined, one file for each model)
+  --output_path         Folder to save testing result
+  --model               Model to test specific one of these names: 'coarse', 'super_resolution', 'refinement' or 'inpaint'(all model combined)
+```
+
 
