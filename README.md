@@ -29,6 +29,7 @@ For Anaconda user, use these commands to install Python Environments
 ```
 
 ### WandB set up
+
 WandB is used for monitoring loss during training. Sign up at [WandB](https://wandb.ai/site) and receive [API key](https://wandb.ai/authorize). In command line type
 
 ```
@@ -45,3 +46,9 @@ If you are using python notebook, you also can use this code
 ```
 
 ## Training
+
+This model consist of 3 networks namely Coarse Network, Super Resolution Network and Refinement Network. First, each network will be pre-trained individualy. After that, all networks will be jointly trained.
+
+### Pre-train
+
+
