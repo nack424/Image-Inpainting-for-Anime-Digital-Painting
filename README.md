@@ -75,7 +75,7 @@ Optional arguments:
   --save_model          Folder to save model
 ```
 
-You can monitor pre-train loss in WandB's project.
+You can monitor pretrain loss in WandB's project.
 
 ### Combined train
 
