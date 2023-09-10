@@ -79,7 +79,7 @@ You can monitor pre-train loss in WandB's project.
 
 ### Combinded train
 
-Combinded train commmand line usage example:
+Combinded train command line usage example:
 
 ```
 > python train.py --mask_type=1 --train_path='./trainset' --save_model='./save_model'
