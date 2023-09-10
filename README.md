@@ -46,7 +46,7 @@ If you are using python notebook, you also can use this code
 
 ## Google colab notebook
 
-If you're working in a Google Colab notebook, you can easily follow the example in [This notebook](https://colab.research.google.com/drive/1OomCdAP3pf0I1itpsj3AZbOU0WX5tA-E?usp=sharing) For additional guidance on using the command line, refer to the section below.
+If you're working in a Google Colab notebook, you can easily follow the example in [this notebook](https://colab.research.google.com/drive/1OomCdAP3pf0I1itpsj3AZbOU0WX5tA-E?usp=sharing) For additional guidance on using the command line, refer to the section below.
 
 ## Training
 
