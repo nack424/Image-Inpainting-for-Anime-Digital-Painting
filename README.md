@@ -9,7 +9,7 @@ We try to trained this model on cloud GPU rental (Vast.ai) with 4 Nvidia RTX A50
 
 ### Cuda GPU and Cuda Software
 
-This project is coded to train with CUDA, so CUDA GPU and [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) is required. [cuDNN](https://developer.nvidia.com/cudnn) is optional but can be installed to train the model faster.
+This project is coded to train with CUDA, so CUDA GPU and [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) is required. [cuDNN](https://developer.nvidia.com/cudnn) is optional but can be installed to train the model faster. For google colab user, change run time type to GPU.
 
 ### Python Environments
 
@@ -43,6 +43,10 @@ If you are using python notebook, you also can use this code
 > import wandb
 > wandb.login(key='YOU API KEY HERE')
 ```
+
+## Google colab notebook
+
+If you're working in a Google Colab notebook, you can easily follow the example in 'colab_notebook.ipynb.' For additional guidance on using the command line, refer to the section below.
 
 ## Training
 
