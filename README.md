@@ -1,6 +1,5 @@
 # Image Inpainting for Anime Digital Painting (Underdevelopment)
-
-This project is free time project inspire by anime related project and DeepCreampy. Model is Pytorch implementation of [zoom-to-inpaint](https://github.com/google/zoom-to-inpaint).
+This project is a personal endeavor undertaken, inspired by anime-related projects and DeepCreampy. It involves implementing a PyTorch model for [zoom-to-inpaint](https://github.com/google/zoom-to-inpaint).
 
 ## Disclaimer
 
