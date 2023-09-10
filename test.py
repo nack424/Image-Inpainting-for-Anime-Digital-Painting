@@ -94,7 +94,6 @@ if __name__ == '__main__':
             cv2.imwrite(os.path.join(cmd_args.output_path, 'groundtruth' + str(batch) + '.jpg'), groundtruth)
             cv2.imwrite(os.path.join(cmd_args.output_path, 'coarse_output' + str(batch) + '.jpg'), coarse_output)
             cv2.imwrite(os.path.join(cmd_args.output_path, 'super_resolution_output' + str(batch) + '.jpg'), super_resolution_output)
-<<<<<<< HEAD
             cv2.imwrite(os.path.join(cmd_args.output_path, 'refinement_output' + str(batch) + '.jpg'), refinement_output)
 =======
             cv2.imwrite(os.path.join(cmd_args.output_path, 'refinement_output' + str(batch) + '.jpg'), refinement_output)
