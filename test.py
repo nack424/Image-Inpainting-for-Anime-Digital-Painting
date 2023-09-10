@@ -3,7 +3,6 @@ from datasets import *
 import glob
 from network import *
 import os
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
 parser = argparse.ArgumentParser(description='My training script.')
@@ -19,21 +18,21 @@ if __name__ == '__main__':
 
     if cmd_args.model == 'coarse':
         test_dataset = MaskedDataset(cmd_args.image_path, 1)
-        model = DDP(CoarseNet().to('cuda'))
+        model = CoarseNet().to('cuda')
         model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_model, 'coarse*'))[0], map_location='cuda:0'))
 
     elif cmd_args.model == 'super_resolution':
         test_dataset = SuperResolutionDataset(cmd_args.image_path)
-        model = DDP(SuperResolutionNet().to('cuda'))
+        model = SuperResolutionNet().to('cuda')
         model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_model, 'super_resolution*'))[0], map_location='cuda:0'))
 
     elif cmd_args.model == 'refinement':
         test_dataset = MaskedDataset(cmd_args.image_path, 1)
-        model = DDP(RefinementNet().to('cuda'))
+        model = RefinementNet().to('cuda')
         model.load_state_dict(torch.load(glob.glob(os.path.join(cmd_args.load_model, 'refinement*'))[0], map_location='cuda:0'))
 
     else:
-        test_dataset = JointDataset(cmd_args.image_path, 1, test = True)
+        test_dataset = JointDataset(cmd_args.image_path, 1)
 
         coarse_model = CoarseNet().to('cuda')
         super_resolution_model = SuperResolutionNet().to('cuda')
@@ -75,7 +74,7 @@ if __name__ == '__main__':
             cv2.imwrite(os.path.join(cmd_args.output_path, 'output' + str(batch) + '.jpg'), output)
 
         else:
-            masked_image, mask, _, hr_groundtruth, image_shape = data
+            masked_image, mask, _, hr_groundtruth = data
             masked_image, mask, hr_groundtruth = masked_image.to('cuda'), mask.to('cuda'), hr_groundtruth.to('cuda')
 
             coarse_output = coarse_model(masked_image, mask)
@@ -91,11 +90,8 @@ if __name__ == '__main__':
             super_resolution_output = postprocess(super_resolution_output.cpu().detach())[0]
             refinement_output = postprocess(refinement_output.cpu().detach())[0]
             groundtruth = postprocess(hr_groundtruth.cpu())[0]
-            resize_output = cv2.resize(refinement_output, (int(image_shape[1]), int(image_shape[0])))
 
             cv2.imwrite(os.path.join(cmd_args.output_path, 'groundtruth' + str(batch) + '.jpg'), groundtruth)
             cv2.imwrite(os.path.join(cmd_args.output_path, 'coarse_output' + str(batch) + '.jpg'), coarse_output)
             cv2.imwrite(os.path.join(cmd_args.output_path, 'super_resolution_output' + str(batch) + '.jpg'), super_resolution_output)
             cv2.imwrite(os.path.join(cmd_args.output_path, 'refinement_output' + str(batch) + '.jpg'), refinement_output)
-            cv2.imwrite(os.path.join(cmd_args.output_path, 'resize_output' + str(batch) + '.jpg'),
-                        resize_output)
