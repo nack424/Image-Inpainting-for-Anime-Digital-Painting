@@ -49,21 +49,21 @@ If you are using python notebook, you also can use this code
 
 This model consist of 3 networks namely Coarse Network, Super Resolution Network and Refinement Network. First, each network will be pre-trained individualy. After that, all networks will be jointly trained with small mask. Lastly, all networks will be jointly trained with larger mask.
 
-### Pre-train
+### Pretrain
 
-Pre-train commmand line usage example:
+Pretrain commmand line usage example:
 
 ```
 > python pretrain.py --model='coarse' --train_path='./trainset' --save_model='./save_model'
 ```
 
-Pre-train command line full usage:
+Pretrain command line full usage:
 
 ```
 > python pretrain.py --batch_size=int --epochs=int --learning_rate=float [--load_model=str]
                      --model=str [--save_model=str] --train_path=str --world_size=int
 
-Require arguments:
+Required arguments:
   --batch_size          Amount of images that pass simultaneously to model (default:8)
   --epochs              Amount of training steps (default:10)
   --learning_rate       Control weights change during optimization (default:1e-5)
@@ -92,7 +92,7 @@ Jointly train command line full usage:
 > python train.py --batch_size=int --epochs=int --learning_rate=float [--load_discriminator=str] [--load_inpaint=str]
                   --mask_type=int [--save_model=str] --train_path=str [--val_path=str] --world_size=int
 
-Require arguments:
+Required arguments:
   --batch_size          Amount of images that pass simultaneously to model (default:1)
   --epochs              Amount of training steps (default:10)
   --learning_rate       Control weights change during optimization (default:1e-5)
@@ -124,7 +124,7 @@ Test command line full usage:
 ```
 > python test.py --image_path=str --load_model=str --output_path=str --model=str
 
-Require arguments:
+Required arguments:
   --image_path          Folder contain image for testing (Image size must be 512x512 pixels or higher)
   --load_model          Folder contain saved model (Folder should contain only one model file or if test all model combined, one file for each model)
   --output_path         Folder to save testing result
