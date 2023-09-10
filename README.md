@@ -9,7 +9,7 @@ We try to trained this model on cloud GPU rental (Vast.ai) with 4 Nvidia RTX A50
 
 ### Cuda GPU and Cuda Software
 
-This project is coded to train with Cuda, so Cuda GPU and [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) is required. [cuDNN](https://developer.nvidia.com/cudnn) is optional but can be installed to train the model faster.
+This project is coded to train with CUDA, so CUDA GPU and [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) is required. [cuDNN](https://developer.nvidia.com/cudnn) is optional but can be installed to train the model faster.
 
 ### Python Environments
 
