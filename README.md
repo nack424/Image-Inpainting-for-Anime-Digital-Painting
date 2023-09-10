@@ -3,7 +3,7 @@ This project is a personal endeavor undertaken, inspired by anime-related projec
 
 ## Disclaimer
 
-Author try to trained this model on cloud GPU rental (Vast.ai) with 4 Nvidia RTX A5000 GPUs. However, cost of training this model is very high due to 4.5 million parameters, require a lot of images (10k-100k images) and lot of training step (100k+ steps) to train. We decided to pause this project in training step and afterward. If anyone like to use this model, please use at your own risk. You can also train this model with regular image other than anime image.
+We try to trained this model on cloud GPU rental (Vast.ai) with 4 Nvidia RTX A5000 GPUs. However, cost of training this model is very high due to 4.5 million parameters, require a lot of images (10k-100k images) and lot of training step (100k+ steps) to train. We decided to pause this project in training step and afterward. If anyone prefer to use this model, please use at your own risk. You can also train this model with regular image other than anime image.
 
 ## Requirements
 
