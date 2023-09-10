@@ -77,15 +77,15 @@ Optional arguments:
 
 You can monitor pre-train loss in WandB's project.
 
-### Combinded train
+### Combined train
 
-Combinded train command line usage example:
+Combined train command line usage example:
 
 ```
 > python train.py --mask_type=1 --train_path='./trainset' --save_model='./save_model'
 ```
 
-Combinded train command line full usage:
+Combined train command line full usage:
 
 ```
 > python train.py --batch_size=int --epochs=int --learning_rate=float [--load_discriminator=str] [--load_inpaint=str]
@@ -112,7 +112,7 @@ Discriminator loss should converge to 2.
 
 ## Evaluation
 
-Evaluate commmand line usage example:
+Evaluate command line usage example:
 
 ```
 > python test.py --image_path='./testset' --load_model='./save_model' --output_path='./result' --model='inpaint'
