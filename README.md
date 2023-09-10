@@ -109,17 +109,17 @@ Optional arguments:
 
 In jointly training, WandB will show 4 losses namely coarse_loss, super_resolution_loss, refinement_loss and discriminator_loss.
 
-Discriminator loss is expected to converge to 2.
+Discriminator loss should converge to 2.
 
-## Testing
+## Evaluation
 
-Test commmand line usage example:
+Evaluate commmand line usage example:
 
 ```
 > python test.py --image_path='./testset' --load_model='./save_model' --output_path='./result' --model='inpaint'
 ```
 
-Test command line full usage:
+Evaluate command line full usage:
 
 ```
 > python test.py --image_path=str --load_model=str --output_path=str --model=str
