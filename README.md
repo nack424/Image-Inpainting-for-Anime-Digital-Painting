@@ -47,7 +47,7 @@ If you are using python notebook, you also can use this code
 
 ## Training
 
-This model consist of 3 networks namely Coarse Network, Super Resolution Network and Refinement Network. First, each network will be pre-trained individualy. After that, all networks will be jointly trained with small mask. Lastly, all networks will be jointly trained with larger mask.
+This model consist of 3 networks namely Coarse Network, Super Resolution Network and Refinement Network. First, each network will be pre-trained individualy. After that, all networks will be combinded trained with small mask. Lastly, all networks will be combinded trained with larger mask.
 
 ### Pretrain
 
@@ -78,15 +78,15 @@ Optional arguments:
 
 You can monitor pre-train loss in WandB's project.
 
-### Jointly train
+### Combinded train
 
-Jointly train commmand line usage example:
+Combinded train commmand line usage example:
 
 ```
 > python train.py --mask_type=1 --train_path='./trainset' --save_model='./save_model'
 ```
 
-Jointly train command line full usage:
+Combinded train command line full usage:
 
 ```
 > python train.py --batch_size=int --epochs=int --learning_rate=float [--load_discriminator=str] [--load_inpaint=str]
